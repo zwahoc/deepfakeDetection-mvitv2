@@ -10,7 +10,7 @@
     "train_f1": 0.7533333333333333,
     "val_loss": 0.6770699769258499,
     "val_acc": 0.625,
-    "val_auc": NaN,
+    "val_auc": null,
     "val_f1": 0.0,
     "val_precision": 0.0,
     "val_recall": 0.0
@@ -26,7 +26,7 @@
     "train_f1": 0.7333333333333333,
     "val_loss": 0.6311722099781036,
     "val_acc": 0.625,
-    "val_auc": NaN,
+    "val_auc": null,
     "val_f1": 0.0,
     "val_precision": 0.0,
     "val_recall": 0.0
@@ -42,7 +42,7 @@
     "train_f1": 0.3466666666666667,
     "val_loss": 0.5861979871988297,
     "val_acc": 0.625,
-    "val_auc": NaN,
+    "val_auc": null,
     "val_f1": 0.0,
     "val_precision": 0.0,
     "val_recall": 0.0

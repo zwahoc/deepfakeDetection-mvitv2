@@ -4,7 +4,12 @@
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
+
 A deep learning project for detecting deepfake images using **Multiscale Vision Transformer v2 (MViTv2)** as the backbone model. This system classifies face images into **Real** and **Fake** categories with high accuracy.
+
+## 📦 Dataset
+
+This project uses the [Deepfake and Real Images dataset](https://www.kaggle.com/datasets/manjilkarki/deepfake-and-real-images) from Kaggle for training and validation.
 
 ## 🎯 Project Overview
 
@@ -22,6 +27,9 @@ Deepfakes pose serious risks in misinformation, fraud, privacy invasion, and tru
 | F1-Score | 93.64% | 94.24% | 93.94% |
 | **Accuracy** | - | - | **93.96%** |
 
+
+
+
 ## 🏗️ Project Structure
 
 ```
@@ -31,7 +39,6 @@ deepfakeDetection-mvitv2/
 │   │   ├── train.csv       # Training dataset manifest (140k+ images)
 │   │   ├── val.csv         # Validation dataset manifest (39k+ images)
 │   │   └── test.csv        # Test dataset manifest (11k+ images)
-│   ├── processed/          # Processed data (if any)
 │   └── raw/               # Raw image data
 │       ├── train/         # Training images (fake/ and real/ subdirs)
 │       ├── val/           # Validation images
@@ -43,15 +50,9 @@ deepfakeDetection-mvitv2/
 │   ├── figures/           # ROC curves, confusion matrices
 │   ├── metrics/           # Training history and metrics
 │   └── predictions/       # Model predictions and reports
-├── 📁 src/                # Source code modules (organized structure)
-│   ├── data/              # Data loading and preprocessing
-│   ├── eval/              # Evaluation utilities
-│   ├── models/            # Model definitions
-│   ├── train/             # Training utilities
-│   └── utils/             # General utilities
-├── 📁 logs/              # Training logs and tensorboard
-├── 📁 docs/              # Documentation
-└── 📁 reports/           # Generated reports and analysis
+├── .git/                 # Git version control
+├── .gitignore            # Git ignore file
+├── readme.md             # Project documentation
 ```
 
 ## 🚀 Quick Start
@@ -160,27 +161,29 @@ deepfakeDetection-mvitv2/
    ```
    data/raw/
    ├── train/
-   │   ├── fake/    # Fake/deepfake images
-   │   └── real/    # Real/authentic images
+   │   ├── fake/    # Fake/deepfake images from kaggle's dataset in train folder
+   │   └── real/    # Real/authentic images from kaggle's dataset in train folder
    ├── val/
-   │   ├── fake/
-   │   └── real/
+   │   ├── fake/    # Fake/deepfake images from kaggle's dataset in validation folder
+   │   └── real/    # Real/authentic images from kaggle's dataset in validation folder
    └── test/
-       ├── fake/
-       └── real/
+       ├── fake/    # Fake/deepfake images from kaggle's dataset in test folder
+       └── real/    # Real/authentic images from kaggle's dataset in test folder
    ```
 
 2. **Generate manifest files** by running the notebook cells that create `train.csv`, `val.csv`, and `test.csv` in the `data/manifests/` directory.
+
 
 ## 📚 Usage
 
 ### Running the Complete Pipeline
 
+All code for data loading, preprocessing, model training, evaluation, and visualization is contained in the Jupyter notebook:
+
 1. **Start Jupyter Notebook:**
    ```bash
    # Windows
    jupyter notebook
-   
    # Mac
    jupyter notebook
    ```
@@ -198,7 +201,7 @@ deepfakeDetection-mvitv2/
 
 ### Training Configuration
 
-The project uses a two-phase training approach:
+The project uses a two-phase training approach, fully implemented in the notebook:
 
 **Phase 1 (Head-only training):**
 - Epochs: 8
@@ -229,10 +232,17 @@ The project uses a two-phase training approach:
 
 The project generates comprehensive outputs:
 
+
 ### Checkpoints
-- `mvitv2_phase1_best.pt` - Best Phase 1 model
-- `mvitv2_phase2_best.pt` - Best Phase 2 model (final)
-- Timestamped checkpoints for each epoch
+- **Note:** Model checkpoint files are **not included** in this repository due to GitHub's file size limitations. You must train the model yourself to generate these files.
+- Before training, **create the `checkpoints` directory** inside the `outputs` folder if it does not exist:
+   ```bash
+   mkdir -p outputs/checkpoints
+   ```
+- Example checkpoint files (created after training):
+   - `mvitv2_phase1_best.pt` - Best Phase 1 model
+   - `mvitv2_phase2_best.pt` - Best Phase 2 model (final)
+   - Timestamped checkpoints for each epoch
 
 ### Visualizations
 - ROC curves for validation and test sets
@@ -242,6 +252,7 @@ The project generates comprehensive outputs:
 ### Predictions
 - CSV files with predictions and probabilities
 - Classification reports with detailed metrics
+
 
 ## 🔧 Customization
 
@@ -267,15 +278,25 @@ train_cfg = {
 
 ## 🔍 Hardware Requirements
 
+
+### Training Hardware (Current Specs)
+- **LAPTOP**: Nitro 5 AN515-58
+- **CPU**: Intel Core i5-12500H
+- **RAM**: 32GB DDR4
+- **GPU**: NVIDIA RTX3050 Laptop GPU (4GB VRAM)
+
+
 ### Minimum Requirements
 - **RAM**: 8GB
-- **Storage**: 10GB free space
-- **GPU**: NVIDIA GTX 1060 or equivalent (6GB VRAM)
+- **Storage**: 10GB free space (for small datasets)
+- **GPU**: NVIDIA GTX 1650 or equivalent (4GB VRAM)
+Dedicated GPU strongly recommended for faster training. Training on CPU is possible but will be much slower; reduce batch size to fit into memory if using CPU or low VRAM GPU.
+
 
 ### Recommended Requirements
 - **RAM**: 16GB+
 - **Storage**: 50GB+ free space (for large datasets)
-- **GPU**: NVIDIA RTX 3070 or better (8GB+ VRAM)
+- **GPU**: NVIDIA RTX 3060 or better (6-12GB+ VRAM)
 
 ## 🐛 Troubleshooting
 
