@@ -1,4 +1,4 @@
-# Ignore only dataset images
+# Ignore dataset images
 data/**/*.jpg
 data/**/*.jpeg
 data/**/*.png
@@ -6,3 +6,6 @@ data/**/*.png
 # Ignore model checkpoints
 outputs/checkpoints/
 *.pt
+
+# Ignore macOS system files
+.DS_Store

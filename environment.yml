@@ -1,0 +1,28 @@
+
+
+name: deepfake
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - numpy
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - jupyter
+  - notebook
+  - ipywidgets
+  - tqdm
+  - pip:
+      - torch
+      - torchvision
+      - torchaudio
+      - timm
+      - albumentations
+      - opencv-python
+      - pillow
+      - streamlit
+      - plotly

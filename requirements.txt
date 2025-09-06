@@ -1,0 +1,29 @@
+# Core scientific stack
+numpy
+pandas
+scikit-learn
+matplotlib
+seaborn
+
+# PyTorch & ecosystem
+torch
+torchvision
+torchaudio
+timm
+
+# Data augmentation / preprocessing
+albumentations
+opencv-python
+pillow
+
+# Jupyter environment (for notebooks)
+notebook
+jupyter
+ipywidgets
+tqdm
+
+# Streamlit app dependencies
+streamlit
+
+# Optional: plotting in notebooks
+plotly
