@@ -1,4 +1,5 @@
 import streamlit as st
+import json
 import torch
 import timm
 import numpy as np
@@ -6,18 +7,63 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from pathlib import Path
 import PIL.Image as Image
+import streamlit.components.v1 as components
 
 # Configure page
 st.set_page_config(
-    page_title="Deepfake Detection with MViTv2",
+    page_title="Deepfake Image Detection",
     page_icon="🔍",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
+def predict_deepfake_batch(model, device, batch_tensor, threshold: float = 0.5, temperature: float = 1.0):
+    """Vectorized prediction for a batch [N,3,224,224]; returns list of result dicts."""
+    with torch.no_grad():
+        batch_tensor = batch_tensor.to(device)
+        logits = model(batch_tensor)
+
+        # Temperature scaling
+        Tval = max(float(temperature), 1e-6)
+        logits = logits / Tval
+
+        # Convert to probabilities
+        if logits.size(1) == 2:
+            probs = torch.softmax(logits, dim=1)  # [N,2]
+            fake_probs = probs[:, 1].cpu().numpy()
+            real_probs = probs[:, 0].cpu().numpy()
+        else:
+            fake_probs = torch.sigmoid(logits).squeeze(1).cpu().numpy()
+            real_probs = 1.0 - fake_probs
+
+        results = []
+        for fp, rp in zip(fake_probs, real_probs):
+            pred = "FAKE" if fp >= threshold else "REAL"
+            conf = float(fp if pred == "FAKE" else rp)
+            results.append({
+                "prediction": pred,
+                "confidence": conf,
+                "fake_probability": float(fp),
+                "real_probability": float(rp),
+            })
+        return results
+
 # Constants
 PROJECT_ROOT = Path(__file__).parent
+CALIB_PATH = PROJECT_ROOT / "outputs" / "calibration" / "temperature.json"
 CHECKPOINT_PATH = PROJECT_ROOT / "outputs" / "checkpoints" / "mvitv2_phase2_best.pt"
+
+@st.cache_resource(show_spinner=False)
+def load_temperature(calib_path: Path) -> float:
+    """Load temperature T for probability calibration; fallback to 1.0 if missing."""
+    try:
+        if calib_path.exists():
+            data = json.loads(calib_path.read_text())
+            Tval = float(data.get("temperature", 1.0))
+            return max(Tval, 1e-6)
+    except Exception:
+        pass
+    return 1.0
 
 @st.cache_resource
 def load_model():
@@ -44,18 +90,19 @@ def load_model():
     )
     
     # Load trained weights (handle both dict formats)
+    loaded_msg = ""
     if CHECKPOINT_PATH.exists():
         checkpoint = torch.load(CHECKPOINT_PATH, map_location="cpu")
         state = checkpoint.get("model_state", checkpoint)
         model.load_state_dict(state, strict=False)
-        st.success(f"✅ Loaded trained model from {CHECKPOINT_PATH.name}")
+        loaded_msg = f"Loaded trained model from {CHECKPOINT_PATH.name}"
     else:
         st.error(f"❌ Model checkpoint not found at {CHECKPOINT_PATH}")
         st.stop()
-    
+
     model.eval()
     model.to(device)
-    return model, device
+    return model, device, loaded_msg
 
 @st.cache_data
 def get_transforms():
@@ -77,17 +124,17 @@ def preprocess_image(image, transforms):
     """Preprocess uploaded image for model inference."""
     # Convert PIL Image to numpy array
     if isinstance(image, Image.Image):
+        if image.mode != "RGB":
+            image = image.convert("RGB")
         image = np.array(image)
-    
+
     # Ensure RGB format
     if len(image.shape) == 3 and image.shape[2] == 3:
-        # Already RGB
-        pass
+        pass  # already RGB
     elif len(image.shape) == 3 and image.shape[2] == 4:
-        # RGBA to RGB
-        image = image[:, :, :3]
+        image = image[:, :, :3]  # RGBA -> RGB
     else:
-        st.error("Unsupported image format. Please upload RGB or RGBA images.")
+        st.error("Unsupported image format. Please upload an image with 1–4 channels.")
         return None
     
     # Apply transforms
@@ -99,13 +146,17 @@ def preprocess_image(image, transforms):
     
     return tensor_image
 
-def predict_deepfake(model, device, image_tensor, threshold: float = 0.5):
+def predict_deepfake(model, device, image_tensor, threshold: float = 0.5, temperature: float = 1.0):
     """Make prediction on preprocessed image with adjustable threshold."""
     with torch.no_grad():
         image_tensor = image_tensor.to(device)
         
         # Get model output (logits)
         logits = model(image_tensor)
+
+        # Apply temperature scaling (divide logits by T)
+        Tval = max(float(temperature), 1e-6)
+        logits = logits / Tval
         
         # Convert to probabilities
         if logits.size(1) == 2:  # 2-class output
@@ -128,9 +179,117 @@ def predict_deepfake(model, device, image_tensor, threshold: float = 0.5):
             "real_probability": float(real_prob)
         }
 
+# Render the classification outcome (left column contents)
+def render_outcome_panel(result, calib_on: bool, uncert_band: float):
+    fake_prob = float(result["fake_probability"]) if isinstance(result, dict) else float(result.fake_probability)
+    real_prob = float(result["real_probability"]) if isinstance(result, dict) else float(result.real_probability)
+    prediction = (result["prediction"] if isinstance(result, dict) else result.prediction).upper()
+    confidence = float(result["confidence"]) if isinstance(result, dict) else float(result.confidence)
+
+    # Uncertain only when calibration is ON
+    uncertain = False
+    if calib_on:
+        uncertain = abs(fake_prob - 0.5) <= float(uncert_band)
+
+    # Callout
+    if uncertain:
+        st.info(f"⚖️ **UNCERTAIN** — {fake_prob:.1%} fake")
+    else:
+        if prediction == "REAL":
+            st.success(f"✅  **{prediction}**")
+        else:
+            st.error(f"❌  **{prediction}**")
+
+    # Confidence
+    st.metric(label="Confidence", value=f"{confidence:.1%}")
+
+    # Probabilities
+    st.markdown("**Real Image Probability:**")
+    st.progress(int(real_prob * 100))
+    st.caption(f"{real_prob:.1%}")
+
+    st.markdown("**Fake Image Probability:**")
+    st.progress(int(fake_prob * 100))
+    st.caption(f"{fake_prob:.1%}")
+
+def render_result_card(image_pil, filename, result, calib_on: bool, uncert_band: float, idx: int, total: int, only_image: bool = False):
+    """Render one image + prediction card with uncertainty handling."""
+    fake_prob = result["fake_probability"]
+    real_prob = result["real_probability"]
+    prediction = result["prediction"]
+    confidence = result["confidence"]
+
+    # Determine uncertainty only if calibration is ON
+    uncertain = False
+    if calib_on:
+        uncertain = abs(fake_prob - 0.5) <= float(uncert_band)
+
+    # Center the image and caption using flexbox in markdown
+    image_html = f"""
+    <div style="display:flex; justify-content:center; align-items:center; flex-direction:column;">
+        <img src="data:image/png;base64,{_image_to_base64(image_pil)}" style="max-width:350px; height:auto;" />
+        <div style="text-align:center; color: rgba(250,250,250,0.7); margin-top:6px;">{filename}</div>
+    </div>
+    """
+    st.markdown(image_html, unsafe_allow_html=True)
+
+    # Carousel controls directly under the image
+    ctrl_left, ctrl_center, ctrl_right = st.columns([1, 2, 1])
+
+    def _go_prev():
+        cur = int(st.session_state.get("gallery_idx", 0))
+        st.session_state["gallery_idx"] = (cur - 1) % total
+
+    def _go_next():
+        cur = int(st.session_state.get("gallery_idx", 0))
+        st.session_state["gallery_idx"] = (cur + 1) % total
+
+    with ctrl_left:
+        st.button("◀ Prev", use_container_width=True, key="nav_prev", on_click=_go_prev)
+
+    with ctrl_center:
+        st.markdown(
+            f"<div style='text-align:center; font-weight:600;'>Image {idx + 1} of {total}</div>",
+            unsafe_allow_html=True
+        )
+
+    with ctrl_right:
+        st.button("Next ▶", use_container_width=True, key="nav_next", on_click=_go_next)
+
+    # Main callout and metrics, only if not only_image
+    if not only_image:
+        # Main callout
+        if uncertain:
+            st.info(f"⚖️ **UNCERTAIN** — {fake_prob:.1%} fake")
+        else:
+            if prediction == "REAL":
+                st.success(f"✅ **{prediction}**")
+            else:
+                st.error(f"❌ **{prediction}**")
+
+        # Confidence
+        st.metric(label="Confidence", value=f"{confidence:.1%}")
+
+        # Probabilities
+        st.markdown("**Real Image Probability:**")
+        st.progress(int(real_prob * 100))
+        st.caption(f"{real_prob:.1%}")
+
+        st.markdown("**Fake Image Probability:**")
+        st.progress(int(fake_prob * 100))
+        st.caption(f"{fake_prob:.1%}")
+
+def _image_to_base64(image_pil):
+    import io
+    import base64
+    buffered = io.BytesIO()
+    image_pil.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+    return img_str
+
 def main():
     # Title and description
-    st.title("🔍 Deepfake Detection with MViTv2")
+    st.title("🔍 Deepfake Image Detection with MViTv2")
     st.markdown("""
     This application uses a **Multiscale Vision Transformer v2 (MViTv2)** model to detect deepfake images.
     The model has been trained to classify face images as **Real** or **Fake** with **93.96% accuracy**.
@@ -138,124 +297,215 @@ def main():
     
     # Sidebar
     with st.sidebar:
-        st.header("ℹ️ Model Information")
-        st.markdown("""
-        **Model**: MViTv2-Tiny  
-        **Training**: Two-phase approach  
-        **Accuracy**: 93.96%  
-        **Input Size**: 224×224 RGB  
-        **Classes**: Real vs Fake  
-        """)
-        
-        st.header("📋 Instructions")
-        st.markdown("""
-        1. Upload a face image (JPG, PNG, JPEG)
-        2. The model will analyze the image
-        3. Results show prediction and confidence
-        4. Green = Real, Red = Fake
-        """)
-        
-        st.header("⚠️ Notes")
-        st.markdown("""
-        - Works best with clear face images
-        - Model trained on specific dataset
-        - For research/educational purposes
-        - Not 100% accurate - use with caution
-        """)
-        
+        st.title("Deepfake Detector")
+        if st.session_state.get("loaded_msg"):
+            st.caption(st.session_state["loaded_msg"])
+
         threshold = st.slider("Decision threshold (fake if ≥ threshold)", min_value=0.30, max_value=0.90, value=0.50, step=0.01)
+        # Calibration controls
+        calib_on = st.toggle("Enable calibration (temperature scaling)", value=False, help="When ON, apply the learned temperature to logits before softmax.")
+        uncert_band = st.slider("Uncertain zone (± around 50%)", min_value=0.01, max_value=0.20, value=0.05, step=0.01, help="Only used when calibration is ON. Samples within [0.5±band] are flagged as 'Uncertain'.")
     
-    # Load model
-    model, device = load_model()
-    transforms = get_transforms()
-    
-    # Main interface
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.header("📤 Upload Image")
-        
-        uploaded_file = st.file_uploader(
-            "Choose an image file",
-            type=['png', 'jpg', 'jpeg'],
-            help="Upload a face image to analyze"
+    # --- Single-uploader state (we keep files once chosen) ---
+    if "uploaded_files" not in st.session_state:
+        st.session_state["uploaded_files"] = []
+
+    # Add instructions and notes columns above uploader
+    help_left, help_right = st.columns(2)
+    with help_left:
+        st.subheader("📋 Instructions")
+        st.markdown(
+            """
+            1. Upload one or more face images (JPG/PNG/JPEG)
+            2. The model analyzes each image
+            3. See **prediction** and **confidence** below
+            4. Green = Real, Red = Fake
+            """
         )
-        
-        if uploaded_file is not None:
-            # Display uploaded image
-            image = Image.open(uploaded_file).convert("RGB")
-            st.image(image, caption="Uploaded Image", use_container_width=True)
+    with help_right:
+        st.subheader("⚠️ Notes")
+        st.markdown(
+            """
+            - Works best with clear, frontal faces
+            - Trained on a specific dataset
+            - For research/education purposes
+            - Not 100% accurate — use with caution
+            """
+        )
+
+    # Always show the uploader (top). Keeps existing files in session; adding new files replaces the list.
+    st.header("📤 Upload Image(s)")
+    files = st.file_uploader(
+        "Choose image file(s)",
+        type=["png", "jpg", "jpeg", "webp", "bmp"],
+        accept_multiple_files=True,
+        help="Upload one or more face images to analyze",
+        label_visibility="collapsed",
+        key="uploader_main"
+    )
+    if files is not None and len(files) > 0:
+        st.session_state["uploaded_files"] = files
+        st.session_state["just_uploaded"] = True  # trigger smooth scroll once on next render
             
-            # Show image details
-            st.caption(f"📊 Image size: {image.size[0]}×{image.size[1]} pixels")
-    
-    with col2:
-        st.header("🎯 Detection Results")
-        
-        if uploaded_file is not None:
-            with st.spinner("🔍 Analyzing image..."):
-                # Preprocess image
-                image_tensor = preprocess_image(image, transforms)
-                
-                if image_tensor is not None:
-                    # Make prediction
-                    result = predict_deepfake(model, device, image_tensor, threshold=threshold)
-                    
-                    # Display results
-                    prediction = result["prediction"]
-                    confidence = result["confidence"]
-                    fake_prob = result["fake_probability"]
-                    real_prob = result["real_probability"]
-                    
-                    # Main prediction with color coding
-                    if prediction == "REAL":
-                        st.success(f"✅ **{prediction}**")
-                    else:
-                        st.error(f"❌ **{prediction}**")
-                    
-                    # Confidence score
-                    st.metric(
-                        label="Confidence",
-                        value=f"{confidence:.1%}",
-                        help="How confident the model is in its prediction"
+
+    if st.session_state["uploaded_files"]:
+        uploaded_files = st.session_state["uploaded_files"]
+
+        # Ensure the results anchor exists BEFORE attempting to scroll
+        st.markdown("<div id='results-anchor'></div>", unsafe_allow_html=True)
+
+        # If we just uploaded files, auto-scroll to the results anchor (no global rerun needed)
+        if st.session_state.get("just_uploaded") and not st.session_state.get("auto_scrolled", False):
+            # Consume the scroll intent now so it doesn't leak into the next rerun (e.g., button clicks)
+            st.session_state["auto_scrolled"] = True
+            st.session_state["just_uploaded"] = False
+
+            components.html(
+                """
+                <style>
+                /* Ensure zero margins inside the helper iframe */
+                html, body { margin: 0 !important; padding: 0 !important; height: 0 !important; overflow: hidden !important; }
+                </style>
+                <script>
+                (function(){
+                  try {
+                    const frame = window.frameElement;
+                    // Immediately collapse the iframe to avoid any visible gap
+                    if (frame) {
+                      frame.style.height = '0px';
+                      frame.style.minHeight = '0px';
+                      frame.style.border = '0';
+                    }
+                    const collapseParent = () => {
+                      if (!frame) return;
+                      const parent = frame.parentElement;
+                      if (parent) {
+                        parent.style.height = '0px';
+                        parent.style.minHeight = '0px';
+                        parent.style.margin = '0';
+                        parent.style.padding = '0';
+                        parent.style.overflow = 'hidden';
+                      }
+                    };
+                    // Perform the smooth scroll after a short delay, then hide the frame entirely
+                    setTimeout(() => {
+                      try {
+                        const anchor = parent.document.querySelector('#results-anchor');
+                        if (anchor) { anchor.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                      } catch (_) {}
+                      // Fully hide after scroll just in case
+                      if (frame) frame.style.display = 'none';
+                      collapseParent();
+                    }, 1500);
+                  } catch (e) {
+                    // no-op
+                  }
+                })();
+                </script>
+                """,
+                height=0
+            )
+
+        # Compute effective temperature for calibration
+        T_effective = float(temperature) if calib_on else 1.0
+
+        # Lightweight preview first: load images + preprocess tensors
+        images, tensors = [], []
+        for f in uploaded_files:
+            try:
+                img_pil = Image.open(f).convert("RGB")
+            except Exception as e:
+                st.error(f"Could not open {getattr(f, 'name', 'image')}: {e}")
+                continue
+
+            tensor = preprocess_image(img_pil, transforms)
+            if tensor is None:
+                st.error("Failed to preprocess image")
+                continue
+
+            images.append(img_pil)
+            tensors.append(tensor)
+
+        # Batch predict (vectorized) with a local spinner so only results area shows busy state
+        results = []
+        if len(tensors) > 0:
+            batch = torch.cat(tensors, dim=0)  # [N,3,224,224]
+            with st.spinner(f"Analyzing {len(tensors)} image(s)..."):
+                # (Optional) chunk if very large to save memory
+                MAX_BATCH = 64
+                if batch.size(0) <= MAX_BATCH:
+                    results = predict_deepfake_batch(
+                        model, device, batch, threshold=threshold, temperature=T_effective
                     )
-                    
-                    # Probability breakdown
-                    st.subheader("📊 Probability Breakdown")
-                    
-                    # Real probability bar
-                    st.markdown("**Real Image Probability:**")
-                    st.progress(int(real_prob * 100))
-                    st.caption(f"{real_prob:.1%}")
-                    
-                    # Fake probability bar
-                    st.markdown("**Fake Image Probability:**")
-                    st.progress(int(fake_prob * 100))
-                    st.caption(f"{fake_prob:.1%}")
-                    
-                    # Additional info
-                    st.subheader("🔬 Technical Details")
-                    st.markdown(f"""
-                    - **Model**: MViTv2-Tiny
-                    - **Device**: {device.type.upper()}
-                    - **Input Shape**: {list(image_tensor.shape)}
-                    - **Preprocessing**: Resize to 224×224, ImageNet normalization
-                    - **Decision Threshold**: {threshold:.2f}
-                    """)
-                    
                 else:
-                    st.error("Failed to preprocess image")
+                    results = []
+                    for i in range(0, batch.size(0), MAX_BATCH):
+                        chunk = batch[i:i+MAX_BATCH]
+                        results.extend(
+                            predict_deepfake_batch(
+                                model, device, chunk, threshold=threshold, temperature=T_effective
+                            )
+                        )
+
+        # Results section (anchor already placed above)
+        st.header("🎯 Detection Result")
+        st.write("")
+        if len(images) == 0:
+            st.info("No valid images to display.")
         else:
-            st.info("👆 Upload an image to see detection results")
-            
-            # Show example
-            st.subheader("💡 Example")
-            st.markdown("""
-            The model analyzes facial features and artifacts to determine if an image is:
-            - **Real**: Authentic photograph of a person
-            - **Fake**: AI-generated or manipulated image (deepfake)
-            """)
-    
+            # Carousel state
+            n = len(images)
+            if "gallery_idx" not in st.session_state or st.session_state.get("gallery_count") != n:
+                st.session_state["gallery_idx"] = 0
+                st.session_state["gallery_count"] = n
+            idx = st.session_state["gallery_idx"]
+
+            render_result_card(
+                images[idx], getattr(uploaded_files[idx], 'name', f'image_{idx}'),
+                results[idx],
+                calib_on=bool(calib_on),
+                uncert_band=float(uncert_band),
+                idx=idx,
+                total=n,
+                only_image=True,
+            )
+
+            # Side-by-side: left = outcome, right = technical details
+            col_outcome, col_tech = st.columns([2, 1])
+            with col_outcome:
+                render_outcome_panel(
+                    results[idx],
+                    calib_on=bool(calib_on),
+                    uncert_band=float(uncert_band),
+                )
+            with col_tech:
+                st.subheader("🔬 Technical Details")
+                calib_state = "ON" if calib_on else "OFF"
+                example_shape = [1, 3, 224, 224]
+                effective_T = float(temperature) if calib_on else 1.0
+                uncert_val = float(uncert_band) if calib_on else 0.0
+                st.markdown(f"""
+                - **Model**: MViTv2-Tiny
+                - **Device**: {device.type.upper()}
+                - **Input Shape**: {example_shape}
+                - **Preprocessing**: Resize to 224×224, ImageNet normalization
+                - **Decision Threshold**: {threshold:.2f}
+                - **Calibration**: {calib_state}
+                - **Temperature (T)**: {effective_T:.3f}
+                - **Uncertain Zone**: ±{uncert_val:.2f} (around 50%)
+                """)
+
+
+    else:
+        st.info("👆 Upload image(s) to see detection results")
+        # Show example
+        st.subheader("💡 Example")
+        st.markdown("""
+        The model analyzes facial features and artifacts to determine if an image is:
+        - **Real**: Authentic photograph of a person
+        - **Fake**: AI-generated or manipulated image (deepfake)
+        """)
+
     # Additional information
     st.markdown("---")
     st.subheader("📈 Model Performance")
@@ -279,4 +529,8 @@ def main():
     """)
 
 if __name__ == "__main__":
+    model, device, loaded_msg = load_model()
+    transforms = get_transforms()
+    temperature = load_temperature(CALIB_PATH)
+    st.session_state["loaded_msg"] = loaded_msg
     main()
