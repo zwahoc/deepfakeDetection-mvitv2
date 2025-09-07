@@ -241,11 +241,21 @@ The project generates comprehensive outputs and provides multiple ways to access
 ### 💾 **Training Outputs**
 
 #### Checkpoints
-- **Available models**: Pre-trained checkpoints included for immediate use
-- **Model files**:
-   - `mvitv2_phase1_best.pt` - Best Phase 1 model
-   - `mvitv2_phase2_best.pt` - Best Phase 2 model (recommended)
-   - Timestamped checkpoints for each epoch
+> **Note:** Checkpoints are **not included** in the repository to keep the repo lightweight and within GitHub limits.
+
+- 📥 **Download pretrained checkpoints (Phase‑1 & Phase‑2) here:**  
+  **OneDrive:** https://1drv.ms/f/c/ce853d1a7c00dfcc/EjuEaS0VDypMgBsEwnm89UYByVgU3AN5xpZ5w_26vW2-zw?e=gQ3Amm
+
+- After downloading, place the files in:
+  ```
+  outputs/checkpoints/
+  ```
+
+- Expected filenames (recommended):
+  - `mvitv2_phase1_best.pt` — Best Phase‑1 (head‑only) model
+  - `mvitv2_phase2_best.pt` — Best Phase‑2 (fine‑tuned) model *(recommended for the app)*
+
+The Streamlit app and the notebook evaluation cells will automatically look for `outputs/checkpoints/mvitv2_phase2_best.pt` first, and fall back to `mvitv2_phase1_best.pt` if the Phase‑2 file is not found.
 
 #### Calibration
 - **Temperature scaling**: Calibrated temperature values for improved probability estimates
