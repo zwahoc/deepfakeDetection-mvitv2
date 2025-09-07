@@ -2,10 +2,10 @@
 
 ![Python](https://img.shields.io/badge/python-v3.10+-blue.svg)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.0+-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-
-A deep learning project for detecting deepfake images using **Multiscale Vision Transformer v2 (MViTv2)** as the backbone model. This system classifies face images into **Real** and **Fake** categories with high accuracy.
+A comprehensive deep learning project for detecting deepfake images using **Multiscale Vision Transformer v2 (MViTv2)** as the backbone model. This system includes both a complete training pipeline and a **interactive web application** for real-time deepfake detection with **93.96% accuracy**.
 
 ## 📦 Dataset
 
@@ -13,10 +13,30 @@ This project uses the [Deepfake and Real Images dataset](https://www.kaggle.com/
 
 ## 🎯 Project Overview
 
-Deepfakes pose serious risks in misinformation, fraud, privacy invasion, and trust in digital media. This project builds a prototype deepfake detection system that achieves **93.96% accuracy** on test data using a two-phase training approach:
+Deepfakes pose serious risks in misinformation, fraud, privacy invasion, and trust in digital media. This project builds a complete deepfake detection system that achieves **93.96% accuracy** on test data using a two-phase training approach:
 
 - **Phase 1**: Head-only training (fine-tuning the classifier)
 - **Phase 2**: Full model fine-tuning with unfrozen backbone layers
+
+### 🚀 **NEW: Interactive Web Application**
+
+This project now includes a **Streamlit web application** (`app.py`) that provides:
+
+- **📤 Multi-image upload**: Upload and analyze multiple images simultaneously
+- **🎛️ Adjustable controls**: Configurable decision threshold and uncertainty detection
+- **🌡️ Temperature calibration**: Advanced probability calibration for better confidence estimates
+- **📱 Modern UI**: Carousel view, progress bars, and responsive design
+- **🔧 Cross-platform**: Supports CUDA, MPS (Apple Silicon), and CPU devices
+- **⚖️ Uncertainty quantification**: Flags predictions when the model is uncertain
+
+### 🔗 **Quick Demo**
+
+```bash
+# Launch the web application
+streamlit run app.py
+```
+
+Visit `http://localhost:8501` to access the interactive interface!
 
 ### 📊 Model Performance
 
@@ -44,15 +64,18 @@ deepfakeDetection-mvitv2/
 │       ├── val/           # Validation images
 │       └── test/          # Test images
 ├── 📁 notebooks/
-│   └── deepfake.ipynb     # Main Jupyter notebook with complete pipeline
+│   └── deepfake.ipynb     # Complete training pipeline notebook
 ├── 📁 outputs/
 │   ├── checkpoints/       # Trained model checkpoints
+│   ├── calibration/       # Temperature calibration files
 │   ├── figures/           # ROC curves, confusion matrices
 │   ├── metrics/           # Training history and metrics
 │   └── predictions/       # Model predictions and reports
-├── .git/                 # Git version control
-├── .gitignore            # Git ignore file
-├── readme.md             # Project documentation
+├── 📱 app.py              # Streamlit web application
+├── 📋 requirements.txt    # Python dependencies
+├── 🐍 environment.yml     # Conda environment configuration
+├── 📄 readme.md           # Project documentation
+└── 🔧 .gitignore          # Git ignore patterns
 ```
 
 ## 🚀 Quick Start
@@ -60,100 +83,52 @@ deepfakeDetection-mvitv2/
 ### Prerequisites
 
 - **Python 3.10+**
-- **CUDA-capable GPU** (recommended for training)
+- **CUDA/MPS/CPU**: Supports NVIDIA GPUs, Apple Silicon (M1/M2), and CPU fallback
 - **Git** for cloning the repository
 
-### Installation
+### Easy Installation (Recommended)
 
-#### For Windows Users
+#### Option 1: Using Conda (Recommended)
 
-1. **Clone the repository:**
-   ```powershell
-   git clone https://github.com/zwahoc/deepfakeDetection-mvitv2.git
-   cd deepfakeDetection-mvitv2
-   ```
+```bash
+# Clone the repository
+git clone https://github.com/zwahoc/deepfakeDetection-mvitv2.git
+cd deepfakeDetection-mvitv2
 
-2. **Create and activate a conda environment:**
-   ```powershell
-   conda create -n deepfake python=3.10 -y
-   conda activate deepfake
-   ```
+# Create environment from file
+conda env create -f environment.yml
+conda activate deepfake
 
-3. **Install PyTorch with CUDA support:**
-   ```powershell
-   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-   ```
+# Launch the web app
+streamlit run app.py
+```
 
-4. **Install required packages:**
-   ```powershell
-   # Vision Transformer models (includes MViTv2)
-   pip install timm
-   
-   # Image processing
-   pip install opencv-python pillow albumentations
-   
-   # Utilities and ML libraries
-   pip install matplotlib pandas scikit-learn tqdm
-   
-   # Jupyter Notebook support
-   pip install notebook ipykernel ipywidgets
-   
-   # Optional: for explainability (Grad-CAM)
-   pip install torchcam
-   ```
+#### Option 2: Using pip
 
-5. **Set up Jupyter kernel:**
-   ```powershell
-   jupyter nbextension enable --py widgetsnbextension
-   python -m ipykernel install --user --name=deepfake --display-name "Python (deepfake)"
-   ```
+```bash
+# Clone the repository
+git clone https://github.com/zwahoc/deepfakeDetection-mvitv2.git
+cd deepfakeDetection-mvitv2
 
-#### For Mac Users
+# Create virtual environment
+python -m venv deepfake-env
+source deepfake-env/bin/activate  # On Windows: deepfake-env\Scripts\activate
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/zwahoc/deepfakeDetection-mvitv2.git
-   cd deepfakeDetection-mvitv2
-   ```
+# Install dependencies
+pip install -r requirements.txt
 
-2. **Create and activate a conda environment:**
-   ```bash
-   conda create -n deepfake python=3.10 -y
-   conda activate deepfake
-   ```
+# Launch the web app
+streamlit run app.py
+```
 
-3. **Install PyTorch:**
-   ```bash
-   # For Mac with Apple Silicon (M1/M2)
-   pip install torch torchvision torchaudio
-   
-   # For Intel Mac
-   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-   ```
+### 🌐 Web Application Usage
 
-4. **Install required packages:**
-   ```bash
-   # Vision Transformer models (includes MViTv2)
-   pip install timm
-   
-   # Image processing
-   pip install opencv-python pillow albumentations
-   
-   # Utilities and ML libraries
-   pip install matplotlib pandas scikit-learn tqdm
-   
-   # Jupyter Notebook support
-   pip install notebook ipykernel ipywidgets
-   
-   # Optional: for explainability (Grad-CAM)
-   pip install torchcam
-   ```
-
-5. **Set up Jupyter kernel:**
-   ```bash
-   jupyter nbextension enable --py widgetsnbextension
-   python -m ipykernel install --user --name=deepfake --display-name "Python (deepfake)"
-   ```
+1. **Launch the app**: `streamlit run app.py`
+2. **Open browser**: Navigate to `http://localhost:8501`
+3. **Upload images**: Use the file uploader to select face images
+4. **Adjust settings**: Configure threshold and calibration in the sidebar
+5. **View results**: See predictions, confidence scores, and technical details
+6. **Batch processing**: Upload multiple images for batch analysis
 
 ## 💾 Dataset Setup
 
@@ -176,15 +151,29 @@ deepfakeDetection-mvitv2/
 
 ## 📚 Usage
 
-### Running the Complete Pipeline
+### 🌐 Web Application (Recommended)
 
-All code for data loading, preprocessing, model training, evaluation, and visualization is contained in the Jupyter notebook:
+The easiest way to use the deepfake detection system:
+
+```bash
+streamlit run app.py
+```
+
+**Features:**
+- **Interactive interface**: Upload and analyze images through a web browser
+- **Batch processing**: Handle multiple images simultaneously
+- **Real-time results**: See predictions and confidence scores instantly
+- **Adjustable settings**: Configure decision threshold and uncertainty detection
+- **Temperature calibration**: Enable advanced probability calibration
+- **Cross-platform support**: Works on Windows, macOS, and Linux
+- **Multi-device support**: Automatically detects and uses CUDA, MPS, or CPU
+
+### 📓 Training Pipeline (Advanced Users)
+
+For training your own models or exploring the complete pipeline:
 
 1. **Start Jupyter Notebook:**
    ```bash
-   # Windows
-   jupyter notebook
-   # Mac
    jupyter notebook
    ```
 
@@ -198,6 +187,15 @@ All code for data loading, preprocessing, model training, evaluation, and visual
    - Perform Phase 2 training (full fine-tuning)
    - Evaluate model performance
    - Generate visualizations and reports
+
+### 🎛️ Application Configuration
+
+The web application supports several configuration options:
+
+- **Decision Threshold**: Adjust the threshold for fake/real classification (default: 0.5)
+- **Temperature Calibration**: Enable/disable temperature scaling for better probability estimates
+- **Uncertainty Zone**: Configure the range around 50% to flag uncertain predictions
+- **Batch Size**: Automatically handles batch processing for multiple images
 
 ### Training Configuration
 
@@ -230,31 +228,52 @@ The project uses a two-phase training approach, fully implemented in the noteboo
 
 ## 📊 Results and Outputs
 
-The project generates comprehensive outputs:
+The project generates comprehensive outputs and provides multiple ways to access results:
 
+### 🌐 **Web Application Results**
+- **Real-time predictions**: Instant classification with confidence scores
+- **Visual feedback**: Color-coded results (green for real, red for fake)
+- **Progress bars**: Visual representation of probability distributions
+- **Technical details**: Device info, model parameters, and processing statistics
+- **Uncertainty detection**: Flags when model confidence is low
+- **Batch results**: Gallery view for multiple image analysis
 
-### Checkpoints
-- **Note:** Model checkpoint files are **not included** in this repository due to GitHub's file size limitations. You must train the model yourself to generate these files.
-- Before training, **create the `checkpoints` directory** inside the `outputs` folder if it does not exist:
-   ```bash
-   mkdir -p outputs/checkpoints
-   ```
-- Example checkpoint files (created after training):
+### 💾 **Training Outputs**
+
+#### Checkpoints
+- **Available models**: Pre-trained checkpoints included for immediate use
+- **Model files**:
    - `mvitv2_phase1_best.pt` - Best Phase 1 model
-   - `mvitv2_phase2_best.pt` - Best Phase 2 model (final)
+   - `mvitv2_phase2_best.pt` - Best Phase 2 model (recommended)
    - Timestamped checkpoints for each epoch
 
-### Visualizations
-- ROC curves for validation and test sets
-- Confusion matrices
-- Training history plots
+#### Calibration
+- **Temperature scaling**: Calibrated temperature values for improved probability estimates
+- **Calibration file**: `outputs/calibration/temperature.json`
 
-### Predictions
+#### Visualizations
+- ROC curves for validation and test sets
+- Confusion matrices with detailed breakdowns
+- Training history plots and metrics
+
+#### Predictions
 - CSV files with predictions and probabilities
 - Classification reports with detailed metrics
+- Per-image analysis results
 
 
-## 🔧 Customization
+## 🔧 Advanced Configuration
+
+### Web Application Settings
+
+The Streamlit app provides several configuration options accessible through the sidebar:
+
+```python
+# Example configuration in app.py
+threshold = 0.5  # Decision threshold for classification
+calib_on = True  # Enable temperature calibration
+uncert_band = 0.05  # Uncertainty zone around 50%
+```
 
 ### Model Configuration
 Modify the model settings in the notebook:
@@ -276,50 +295,109 @@ train_cfg = {
 }
 ```
 
+### Device Selection
+The application automatically selects the best available device:
+```python
+device = (
+    torch.device("mps") if torch.backends.mps.is_available()      # Apple Silicon
+    else torch.device("cuda") if torch.cuda.is_available()        # NVIDIA GPU
+    else torch.device("cpu")                                      # CPU fallback
+)
+```
+
 ## 🔍 Hardware Requirements
 
+### 🌐 **Web Application (Inference)**
+- **Minimum**: 4GB RAM, any modern CPU
+- **Recommended**: 8GB+ RAM, dedicated GPU or Apple Silicon
+- **Storage**: 2GB for model and dependencies
+- **Supported devices**: 
+  - ✅ NVIDIA GPUs (CUDA)
+  - ✅ Apple Silicon (MPS) - M1/M2/M3
+  - ✅ CPU (Intel/AMD/ARM)
 
-### Training Hardware (Current Specs)
+### 🏋️ **Training Pipeline**
+#### Current Development Hardware
 - **LAPTOP**: Nitro 5 AN515-58
 - **CPU**: Intel Core i5-12500H
 - **RAM**: 32GB DDR4
 - **GPU**: NVIDIA RTX3050 Laptop GPU (4GB VRAM)
 
-
-### Minimum Requirements
+#### Minimum Training Requirements
 - **RAM**: 8GB
 - **Storage**: 10GB free space (for small datasets)
 - **GPU**: NVIDIA GTX 1650 or equivalent (4GB VRAM)
-Dedicated GPU strongly recommended for faster training. Training on CPU is possible but will be much slower; reduce batch size to fit into memory if using CPU or low VRAM GPU.
+- **Note**: Training on CPU is possible but much slower; reduce batch size for low-memory systems
 
-
-### Recommended Requirements
+#### Recommended Training Requirements
 - **RAM**: 16GB+
 - **Storage**: 50GB+ free space (for large datasets)
 - **GPU**: NVIDIA RTX 3060 or better (6-12GB+ VRAM)
+- **Alternative**: Apple Silicon M1 Pro/Max/Ultra for Mac users
 
 ## 🐛 Troubleshooting
 
-### Common Issues
+### 🌐 Web Application Issues
+
+1. **App won't start**
+   ```bash
+   # Check if Streamlit is installed
+   streamlit --version
+   
+   # If missing, install dependencies
+   pip install -r requirements.txt
+   ```
+
+2. **Model loading errors**
+   - Ensure the checkpoint file exists: `outputs/checkpoints/mvitv2_phase2_best.pt`
+   - Check if the model architecture matches the checkpoint
+   - Verify sufficient disk space and memory
+
+3. **Slow inference**
+   - Check which device is being used (displayed in the app)
+   - For NVIDIA GPUs: ensure CUDA is properly installed
+   - For Apple Silicon: verify MPS is available
+   - Consider reducing image resolution or batch size
+
+4. **Memory errors**
+   - Reduce the number of images uploaded simultaneously
+   - Restart the application to clear memory
+   - Close other resource-intensive applications
+
+### 🏋️ Training Pipeline Issues
 
 1. **CUDA Out of Memory**
    - Reduce batch size from 4 to 2 or 1
    - Enable gradient accumulation to simulate larger batches
+   - Use smaller model variants (mvitv2_tiny instead of mvitv2_small)
 
 2. **Slow Training on CPU**
    - Install CUDA-enabled PyTorch if you have an NVIDIA GPU
-   - Consider using smaller model variants
+   - Consider using Google Colab or cloud platforms for GPU access
+   - Use data loading optimizations (num_workers=0 for debugging)
 
 3. **Import Errors**
-   - Ensure all packages are installed in the correct conda environment
-   - Verify the Jupyter kernel is using the right environment
+   - Ensure all packages are installed: `pip install -r requirements.txt`
+   - Verify the correct conda environment is activated
+   - Check Python version compatibility (3.10+ required)
 
-### Performance Tips
+4. **Dataset Loading Issues**
+   - Verify the data structure matches the expected format
+   - Check file permissions and paths
+   - Ensure sufficient disk space for dataset extraction
 
-- **Use SSD storage** for faster data loading
-- **Set appropriate num_workers** in DataLoader (0 for Windows, 2-4 for Unix)
-- **Enable AMP** for faster training with minimal accuracy loss
-- **Use tensorboard** for monitoring training progress
+### 💡 Performance Tips
+
+#### For Web Application:
+- **Browser**: Use Chrome or Firefox for best compatibility
+- **Upload**: Resize large images before upload for faster processing
+- **Batch size**: Upload 5-10 images at a time for optimal performance
+
+#### For Training:
+- **Storage**: Use SSD storage for faster data loading
+- **Memory**: Set appropriate `num_workers` in DataLoader (0 for Windows, 2-4 for Unix)
+- **Precision**: Enable AMP for faster training with minimal accuracy loss
+- **Monitoring**: Use the notebook's built-in progress bars and metrics
 
 ## 📄 License
 
@@ -342,8 +420,35 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [timm](https://github.com/rwightman/pytorch-image-models) for the MViTv2 implementation
 - [PyTorch](https://pytorch.org/) for the deep learning framework
+- [Streamlit](https://streamlit.io/) for the web application framework
+- [Albumentations](https://albumentations.ai/) for data augmentation
 - The research community for advancing deepfake detection methods
+- [Kaggle](https://www.kaggle.com/datasets/manjilkarki/deepfake-and-real-images) for providing the dataset
+
+## 🌟 Features Summary
+
+### ✅ **What's Included**
+- 🎯 **93.96% accuracy** deepfake detection model
+- 🌐 **Interactive web application** with modern UI
+- 📚 **Complete training pipeline** in Jupyter notebook
+- 🔧 **Cross-platform support** (Windows, macOS, Linux)
+- 🚀 **Multi-device acceleration** (CUDA, MPS, CPU)
+- 📊 **Comprehensive evaluation** metrics and visualizations
+- 🌡️ **Temperature calibration** for better confidence estimates
+- ⚖️ **Uncertainty quantification** for reliable predictions
+- 📱 **Batch processing** for multiple images
+- 🎨 **Modern UI** with carousel view and responsive design
+
+### 🔮 **Potential Enhancements**
+- Real-time video processing
+- API endpoint for integration
+- Model ensemble for improved accuracy
+- Additional deepfake detection techniques
+- Mobile app development
+- Cloud deployment options
 
 ---
 
-**⚠️ Disclaimer**: This project is for educational and research purposes. Always consider ethical implications when working with deepfake detection technologies.
+**⚠️ Disclaimer**: This tool is for educational and research purposes only. 
+Deepfake detection is an evolving field, and no model is 100% accurate. 
+Always verify important content through multiple sources and consider the ethical implications of deepfake technology.
