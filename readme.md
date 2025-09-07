@@ -1,4 +1,4 @@
-# Deepfake Detection with MViTv2
+# Deepfake Image Detection with MViTv2
 
 ![Python](https://img.shields.io/badge/python-v3.10+-blue.svg)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)
