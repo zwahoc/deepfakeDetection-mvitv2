@@ -1,11 +1,11 @@
-# Deepfake Image Detection with MViTv2
+# Multi-Model Deepfake Image Detection Platform
 
 ![Python](https://img.shields.io/badge/python-v3.10+-blue.svg)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.0+-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-A comprehensive deep learning project for detecting deepfake images using **Multiscale Vision Transformer v2 (MViTv2)** as the backbone model. This system includes both a complete training pipeline and a **interactive web application** for real-time deepfake detection with **93.96% accuracy**.
+A comprehensive deep learning platform for detecting deepfake images featuring **multiple state-of-the-art models** including **MViTv2**, **EfficientNet-B3**, and **VGG-16+SRM**. This system includes both a complete training pipeline and an **interactive web application** for real-time deepfake detection with **up to 96.98% accuracy**.
 
 ## 📦 Dataset
 
@@ -13,21 +13,28 @@ This project uses the [Deepfake and Real Images dataset](https://www.kaggle.com/
 
 ## 🎯 Project Overview
 
-Deepfakes pose serious risks in misinformation, fraud, privacy invasion, and trust in digital media. This project builds a complete deepfake detection system that achieves **93.96% accuracy** on test data using a two-phase training approach:
+Deepfakes pose serious risks in misinformation, fraud, privacy invasion, and trust in digital media. This project builds a complete **multi-model deepfake detection platform** that offers three state-of-the-art architectures with different strengths:
 
-- **Phase 1**: Head-only training (fine-tuning the classifier)
-- **Phase 2**: Full model fine-tuning with unfrozen backbone layers
+### 🧠 **Available Models**
 
-### 🚀 **NEW: Interactive Web Application**
+| Model | Architecture | Accuracy | Best For |
+|-------|-------------|----------|----------|
+| **VGG-16 + SRM** | CNN + Spatial Rich Model | **96.98%** | High accuracy, forensic analysis |
+| **MViTv2-Tiny** | Vision Transformer | **93.96%** | Balanced performance, modern architecture |
+| **EfficientNet-B3** | Efficient CNN | **91.30%** | Fast inference, resource efficiency |
 
-This project now includes a **Streamlit web application** (`app.py`) that provides:
+### 🚀 **Enhanced Web Application**
 
+The platform features a **sophisticated Streamlit web application** (`app.py`) that provides:
+
+- **🔄 Multi-model selection**: Choose between VGG-16+SRM, MViTv2, or EfficientNet-B3
 - **📤 Multi-image upload**: Upload and analyze multiple images simultaneously
-- **🎛️ Adjustable controls**: Configurable decision threshold and uncertainty detection
-- **🌡️ Temperature calibration**: Advanced probability calibration for better confidence estimates
-- **📱 Modern UI**: Carousel view, progress bars, and responsive design
+- **🎛️ Advanced controls**: Configurable decision threshold and uncertainty detection
+- **🌡️ Temperature calibration**: Advanced probability calibration for MViTv2 (better confidence estimates)
+- **📱 Modern carousel UI**: Navigate through multiple images with smooth transitions
 - **🔧 Cross-platform**: Supports CUDA, MPS (Apple Silicon), and CPU devices
-- **⚖️ Uncertainty quantification**: Flags predictions when the model is uncertain
+- **⚖️ Uncertainty quantification**: Flags predictions when models are uncertain
+- **📊 Real-time metrics**: Live performance statistics for each model
 
 ### 🔗 **Quick Demo**
 
@@ -40,12 +47,29 @@ Visit `http://localhost:8501` to access the interactive interface!
 
 ### 📊 Model Performance
 
+#### **VGG-16 + SRM (Best Overall)**
+| Metric | Real Images | Fake Images | Overall |
+|--------|-------------|-------------|---------|
+| Precision | 96.44% | 96.44% | **96.44%** |
+| Recall | 97.54% | 97.54% | **97.54%** |
+| F1-Score | 96.99% | 96.99% | **96.99%** |
+| **Accuracy** | - | - | **96.98%** |
+
+#### **MViTv2-Tiny (Balanced)**
 | Metric | Real Images | Fake Images | Overall |
 |--------|-------------|-------------|---------|
 | Precision | 98.02% | 90.58% | 94.30% |
 | Recall | 89.64% | 98.22% | 93.93% |
 | F1-Score | 93.64% | 94.24% | 93.94% |
 | **Accuracy** | - | - | **93.96%** |
+
+#### **EfficientNet-B3 (Efficient)**
+| Metric | Real Images | Fake Images | Overall |
+|--------|-------------|-------------|---------|
+| Precision | 92.00% | 92.00% | **92.00%** |
+| Recall | 91.00% | 91.00% | **91.00%** |
+| F1-Score | 91.00% | 91.00% | **91.00%** |
+| **Accuracy** | - | - | **91.30%** |
 
 
 
@@ -67,11 +91,16 @@ deepfakeDetection-mvitv2/
 │   └── deepfake.ipynb     # Complete training pipeline notebook
 ├── 📁 outputs/
 │   ├── checkpoints/       # Trained model checkpoints
+│   │   ├── mvitv2_phase2_best.pt    # MViTv2 model (default)
+│   │   ├── best_efficientnet_b3.pth # EfficientNet-B3 model
+│   │   └── vgg16.pt                 # VGG-16+SRM model
 │   ├── calibration/       # Temperature calibration files
 │   ├── figures/           # ROC curves, confusion matrices
 │   ├── metrics/           # Training history and metrics
 │   └── predictions/       # Model predictions and reports
-├── 📱 app.py              # Streamlit web application
+├── 📁 B3-checkpoint/      # EfficientNet-B3 model checkpoints
+├── 📁 VGG16-checkpoint/   # VGG-16+SRM model checkpoints
+├── 📱 app.py              # Advanced multi-model Streamlit application
 ├── 📋 requirements.txt    # Python dependencies
 ├── 🐍 environment.yml     # Conda environment configuration
 ├── 📄 readme.md           # Project documentation
@@ -125,10 +154,30 @@ streamlit run app.py
 
 1. **Launch the app**: `streamlit run app.py`
 2. **Open browser**: Navigate to `http://localhost:8501`
-3. **Upload images**: Use the file uploader to select face images
-4. **Adjust settings**: Configure threshold and calibration in the sidebar
-5. **View results**: See predictions, confidence scores, and technical details
-6. **Batch processing**: Upload multiple images for batch analysis
+3. **Select model**: Choose from VGG-16+SRM, MViTv2, or EfficientNet-B3 in the sidebar
+4. **Upload images**: Use the file uploader to select face images (supports JPG, PNG, JPEG, WebP, BMP)
+5. **Adjust settings**: Configure threshold and calibration options
+6. **View results**: See predictions, confidence scores, and technical details
+7. **Navigate**: Use carousel controls to browse through multiple uploaded images
+8. **Analyze performance**: View live model performance metrics
+
+### 🎛️ **Application Features Breakdown**
+
+#### **Model Selection**
+- **VGG-16 + SRM**: Best for forensic-level analysis with 96.98% accuracy
+- **MViTv2-Tiny**: Modern transformer with temperature calibration support
+- **EfficientNet-B3**: Fast and efficient for real-time applications
+
+#### **Advanced Controls**
+- **Decision Threshold**: Adjust sensitivity (0.30-0.90, default: 0.50)
+- **Temperature Calibration**: Available for MViTv2 to improve confidence estimates
+- **Uncertainty Zone**: Flags predictions with low confidence (±5% around 50% by default)
+
+#### **User Interface**
+- **Carousel View**: Navigate through multiple images with prev/next controls
+- **Progress Bars**: Visual representation of real/fake probabilities
+- **Auto-scrolling**: Smooth navigation to results after upload
+- **Responsive Design**: Works on desktop and mobile browsers
 
 ## 💾 Dataset Setup
 
@@ -153,20 +202,21 @@ streamlit run app.py
 
 ### 🌐 Web Application (Recommended)
 
-The easiest way to use the deepfake detection system:
+The easiest way to use the multi-model deepfake detection platform:
 
 ```bash
 streamlit run app.py
 ```
 
-**Features:**
+**Key Features:**
+- **Multi-model support**: Switch between VGG-16+SRM, MViTv2, and EfficientNet-B3
 - **Interactive interface**: Upload and analyze images through a web browser
-- **Batch processing**: Handle multiple images simultaneously
+- **Batch processing**: Handle multiple images simultaneously with carousel navigation
 - **Real-time results**: See predictions and confidence scores instantly
-- **Adjustable settings**: Configure decision threshold and uncertainty detection
-- **Temperature calibration**: Enable advanced probability calibration
+- **Advanced settings**: Configure decision threshold, temperature calibration, and uncertainty detection
 - **Cross-platform support**: Works on Windows, macOS, and Linux
 - **Multi-device support**: Automatically detects and uses CUDA, MPS, or CPU
+- **Performance metrics**: Live accuracy, precision, recall, and F1-score displays
 
 ### 📓 Training Pipeline (Advanced Users)
 
@@ -190,12 +240,23 @@ For training your own models or exploring the complete pipeline:
 
 ### 🎛️ Application Configuration
 
-The web application supports several configuration options:
+The web application supports extensive configuration options:
 
-- **Decision Threshold**: Adjust the threshold for fake/real classification (default: 0.5)
-- **Temperature Calibration**: Enable/disable temperature scaling for better probability estimates
-- **Uncertainty Zone**: Configure the range around 50% to flag uncertain predictions
-- **Batch Size**: Automatically handles batch processing for multiple images
+#### **Model Selection**
+- **VGG-16 + SRM**: Custom forensic architecture with Spatial Rich Model preprocessing
+- **MViTv2-Tiny**: Vision Transformer with hierarchical attention mechanisms  
+- **EfficientNet-B3**: Compound scaling CNN optimized for efficiency
+
+#### **Inference Settings**
+- **Decision Threshold**: Adjust the threshold for fake/real classification (0.30-0.90, default: 0.5)
+- **Temperature Calibration**: Enable/disable temperature scaling for MViTv2 (improves probability estimates)
+- **Uncertainty Zone**: Configure the range around 50% to flag uncertain predictions (0.01-0.20, default: 0.05)
+- **Batch Processing**: Automatic chunking for large image batches (max 64 images per batch)
+
+#### **Input Processing**
+- **Supported Formats**: PNG, JPG, JPEG, WebP, BMP
+- **Automatic Preprocessing**: Image resizing, normalization, and tensor conversion
+- **Multi-image Upload**: Simultaneous processing of multiple images
 
 ### Training Configuration
 
@@ -215,16 +276,34 @@ The project uses a two-phase training approach, fully implemented in the noteboo
 - Early stopping patience: 3 epochs
 - AMP: Enabled
 
-## 📈 Model Architecture
+## 📈 Model Architectures
 
-- **Backbone**: MViTv2-Tiny (pre-trained on ImageNet)
-- **Input size**: 224×224 RGB images
+### **1. VGG-16 + SRM (Forensic Model)**
+- **Backbone**: VGG-16 feature extractor + custom head
+- **Special Feature**: Spatial Rich Model (SRM) preprocessing for forensic analysis
+- **Input size**: 244×244 RGB images
+- **Output**: Single logit (sigmoid activation)
+- **Architecture**: VGG features → Global Average Pooling → BatchNorm → Dropout(0.4) → Linear(512→1)
+
+### **2. MViTv2-Tiny (Vision Transformer)**
+- **Backbone**: Multiscale Vision Transformer v2 (pre-trained on ImageNet)
+- **Input size**: 224×224 RGB images  
 - **Output**: 2-class classification (Real vs Fake)
 - **Key features**:
-  - Multiscale Vision Transformer architecture
-  - Hierarchical feature representation
-  - Efficient attention mechanisms
+  - Hierarchical multiscale attention mechanisms
+  - Efficient transformer architecture
+  - Temperature calibration support
   - Dropout regularization (20%)
+
+### **3. EfficientNet-B3 (Efficient CNN)**
+- **Backbone**: EfficientNet-B3 (compound scaling architecture)
+- **Input size**: 300×300 RGB images
+- **Output**: 2-class classification
+- **Architecture**: EfficientNet backbone → Dropout(0.3) → Linear(1536→512) → ReLU → BatchNorm → Dropout(0.2) → Linear(512→2)
+- **Key features**:
+  - Compound scaling (depth, width, resolution)
+  - Mobile-optimized design
+  - Fast inference speed
 
 ## 📊 Results and Outputs
 
@@ -240,22 +319,27 @@ The project generates comprehensive outputs and provides multiple ways to access
 
 ### 💾 **Training Outputs**
 
-#### Checkpoints
-> **Note:** Checkpoints are **not included** in the repository to keep the repo lightweight and within GitHub limits.
+#### Model Checkpoints
+> **Note:** Model checkpoints are **not included** in the repository to keep it lightweight and within GitHub limits.
 
-- 📥 **Download pretrained checkpoints (Phase‑1 & Phase‑2) here:**  
+- 📥 **Download all pretrained model checkpoints here:**  
   **OneDrive:** https://1drv.ms/f/c/ce853d1a7c00dfcc/EjuEaS0VDypMgBsEwnm89UYByVgU3AN5xpZ5w_26vW2-zw?e=gQ3Amm
 
-- After downloading, place the files in:
+- **Required checkpoint structure:**
   ```
   outputs/checkpoints/
+  ├── mvitv2_phase2_best.pt      # MViTv2 model (93.96% accuracy)
+  
+  B3-checkpoint/
+  ├── best_efficientnet_b3.pth   # EfficientNet-B3 model (91.30% accuracy)
+  
+  VGG16-checkpoint/
+  ├── vgg16.pt                   # VGG-16+SRM model (96.98% accuracy)
   ```
 
-- Expected filenames (recommended):
-  - `mvitv2_phase1_best.pt` — Best Phase‑1 (head‑only) model
-  - `mvitv2_phase2_best.pt` — Best Phase‑2 (fine‑tuned) model *(recommended for the app)*
+- **App behavior**: The application will automatically detect available models and show them in the model selector. If a checkpoint is missing, that model will be unavailable until the checkpoint is added.
 
-The Streamlit app and the notebook evaluation cells will automatically look for `outputs/checkpoints/mvitv2_phase2_best.pt` first, and fall back to `mvitv2_phase1_best.pt` if the Phase‑2 file is not found.
+- **Compatibility**: Each model has its own checkpoint format and loading mechanism built into the app.
 
 #### Calibration
 - **Temperature scaling**: Calibrated temperature values for improved probability estimates
@@ -274,15 +358,37 @@ The Streamlit app and the notebook evaluation cells will automatically look for 
 
 ## 🔧 Advanced Configuration
 
-### Web Application Settings
+### Web Application Advanced Settings
 
-The Streamlit app provides several configuration options accessible through the sidebar:
+The Streamlit app provides extensive configuration through the sidebar and `MODEL_REGISTRY`:
 
 ```python
-# Example configuration in app.py
-threshold = 0.5  # Decision threshold for classification
-calib_on = True  # Enable temperature calibration
-uncert_band = 0.05  # Uncertainty zone around 50%
+# Model registry configuration (app.py)
+MODEL_REGISTRY = {
+    "mvitv2_tiny": {
+        "display_name": "MViTv2-Tiny",
+        "backend": "timm",
+        "input_size": 224,
+        "calibration_supported": True,  # Temperature scaling available
+    },
+    "efficientnet_b3": {
+        "display_name": "EfficientNet-B3", 
+        "backend": "torchvision",
+        "input_size": 300,
+        "calibration_supported": False,  # No temperature scaling
+    },
+    "vgg16_srm": {
+        "display_name": "VGG-16 + SRM",
+        "backend": "custom_vgg16_srm",
+        "input_size": 244,
+        "calibration_supported": False,  # No temperature scaling
+    }
+}
+
+# Runtime configuration
+threshold = 0.5         # Decision threshold (0.30-0.90)
+calib_on = True         # Enable temperature calibration (MViTv2 only)
+uncert_band = 0.05      # Uncertainty zone (±5% around 50%)
 ```
 
 ### Model Configuration
@@ -359,15 +465,24 @@ device = (
    ```
 
 2. **Model loading errors**
-   - Ensure the checkpoint file exists: `outputs/checkpoints/mvitv2_phase2_best.pt`
+   - Ensure the required checkpoint files exist:
+     - `outputs/checkpoints/mvitv2_phase2_best.pt` (MViTv2)
+     - `B3-checkpoint/best_efficientnet_b3.pth` (EfficientNet-B3)
+     - `VGG16-checkpoint/vgg16.pt` (VGG-16+SRM)
+   - Download missing checkpoints from OneDrive link above
    - Check if the model architecture matches the checkpoint
    - Verify sufficient disk space and memory
 
-3. **Slow inference**
-   - Check which device is being used (displayed in the app)
+3. **Model not appearing in selector**
+   - Check if the corresponding checkpoint file exists
+   - Verify the checkpoint path in `MODEL_REGISTRY` (app.py)
+   - Restart the application after adding new checkpoints
+
+4. **Slow inference**
+   - Check which device is being used (displayed in app sidebar)
    - For NVIDIA GPUs: ensure CUDA is properly installed
    - For Apple Silicon: verify MPS is available
-   - Consider reducing image resolution or batch size
+   - Consider using a model with smaller input size (VGG-16: 244px vs EfficientNet-B3: 300px)
 
 4. **Memory errors**
    - Reduce the number of images uploaded simultaneously
@@ -401,7 +516,9 @@ device = (
 #### For Web Application:
 - **Browser**: Use Chrome or Firefox for best compatibility
 - **Upload**: Resize large images before upload for faster processing
+- **Model selection**: Use VGG-16+SRM for highest accuracy, EfficientNet-B3 for speed
 - **Batch size**: Upload 5-10 images at a time for optimal performance
+- **Memory**: Restart app periodically for long sessions to clear memory
 
 #### For Training:
 - **Storage**: Use SSD storage for faster data loading
@@ -438,24 +555,27 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🌟 Features Summary
 
 ### ✅ **What's Included**
-- 🎯 **93.96% accuracy** deepfake detection model
-- 🌐 **Interactive web application** with modern UI
-- 📚 **Complete training pipeline** in Jupyter notebook
+- � **Three state-of-the-art models** with up to 96.98% accuracy
+- 🧠 **Multi-model platform** supporting VGG-16+SRM, MViTv2, and EfficientNet-B3
+- 🌐 **Advanced web application** with model selection and carousel UI
+- 📚 **Complete training pipeline** in Jupyter notebook  
 - 🔧 **Cross-platform support** (Windows, macOS, Linux)
 - 🚀 **Multi-device acceleration** (CUDA, MPS, CPU)
-- 📊 **Comprehensive evaluation** metrics and visualizations
-- 🌡️ **Temperature calibration** for better confidence estimates
+- 📊 **Comprehensive evaluation** metrics and live performance displays
+- 🌡️ **Temperature calibration** for MViTv2 (better confidence estimates)
 - ⚖️ **Uncertainty quantification** for reliable predictions
-- 📱 **Batch processing** for multiple images
-- 🎨 **Modern UI** with carousel view and responsive design
+- 📱 **Batch processing** with smooth carousel navigation
+- 🎨 **Modern responsive UI** with auto-scrolling and progress bars
+- 🔄 **Real-time model switching** without app restart
 
 ### 🔮 **Potential Enhancements**
-- Real-time video processing
-- API endpoint for integration
-- Model ensemble for improved accuracy
-- Additional deepfake detection techniques
-- Mobile app development
-- Cloud deployment options
+- **Multi-model ensemble**: Combine predictions from all three models for improved accuracy
+- **Real-time video processing**: Extend to video deepfake detection
+- **REST API endpoint**: Programmatic access for integration
+- **Additional architectures**: Add ResNet, DenseNet, or custom forensic models
+- **Mobile app development**: Native iOS/Android applications
+- **Cloud deployment**: AWS/Azure hosting with auto-scaling
+- **Advanced preprocessing**: Face detection and alignment pipeline
 
 ---
 
