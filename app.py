@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import torch
+import torch.nn as nn
 import timm
 import numpy as np
 import albumentations as A
@@ -8,6 +9,7 @@ from albumentations.pytorch import ToTensorV2
 from pathlib import Path
 import PIL.Image as Image
 import streamlit.components.v1 as components
+from torchvision import models as tv_models
 
 # Configure page
 st.set_page_config(
@@ -18,7 +20,7 @@ st.set_page_config(
 )
 
 def predict_deepfake_batch(model, device, batch_tensor, threshold: float = 0.5, temperature: float = 1.0):
-    """Vectorized prediction for a batch [N,3,224,224]; returns list of result dicts."""
+    """Vectorized prediction for a batch [N,3,H,W]; returns list of result dicts."""
     with torch.no_grad():
         batch_tensor = batch_tensor.to(device)
         logits = model(batch_tensor)
@@ -50,8 +52,102 @@ def predict_deepfake_batch(model, device, batch_tensor, threshold: float = 0.5, 
 
 # Constants
 PROJECT_ROOT = Path(__file__).parent
+
+# Temperature file is only used for MViTv2 (calibration disabled for other models)
 CALIB_PATH = PROJECT_ROOT / "outputs" / "calibration" / "temperature.json"
-CHECKPOINT_PATH = PROJECT_ROOT / "outputs" / "checkpoints" / "mvitv2_phase2_best.pt"
+
+# Multi-model registry (add more models here later)
+
+MODEL_REGISTRY = {
+    "mvitv2_tiny": {
+        "display_name": "MViTv2-Tiny",
+        "backend": "timm",
+        "model_name": "mvitv2_tiny",
+        "num_classes": 2,
+        "drop_rate": 0.2,
+        "checkpoint_path": PROJECT_ROOT / "outputs" / "checkpoints" / "mvitv2_phase2_best.pt",
+        "input_size": 224,
+        "calibration_supported": True,
+    },
+    "efficientnet_b3": {
+        "display_name": "EfficientNet-B3",
+        "backend": "torchvision",
+        "model_name": "efficientnet_b3",
+        "num_classes": 2,
+        "drop_rate": 0.0,  # head will be provided by checkpoint; keep 0.0 here
+        "checkpoint_path": PROJECT_ROOT / "B3-checkpoint" / "best_efficientnet_b3.pth",
+        "input_size": 300,
+        "calibration_supported": False,  # calibration only for MViTv2
+    },
+    "vgg16_srm": {
+        "display_name": "VGG-16 + SRM",
+        "backend": "custom_vgg16_srm",
+        "model_name": "vgg16",
+        "num_classes": 1,  # single-logit output (sigmoid)
+        "drop_rate": 0.0,
+        "checkpoint_path": PROJECT_ROOT / "VGG16-checkpoint" / "vgg16.pt",  # <-- you can change this path
+        "input_size": 244,
+        "calibration_supported": False,
+    }
+}
+
+# Model performance metrics (displayed in the UI)
+# Values are decimals; they will be rendered as percentages.
+METRICS_REGISTRY = {
+    "mvitv2_tiny": {
+        "accuracy": 0.9390,
+        "precision_macro": 0.9430,
+        "recall_macro": 0.9393,
+        "f1_macro": 0.9394,
+    },
+    "efficientnet_b3": {
+        "accuracy": 0.9130,
+        "precision_macro": 0.9200,
+        "recall_macro": 0.9100,
+        "f1_macro": 0.9100,
+    },
+    "vgg16_srm": {
+        "accuracy": 0.9698,
+        "precision_macro": 0.9644,
+        "recall_macro": 0.9754,
+        "f1_macro": 0.9699,
+    },
+}
+
+# ---- Custom wrapper for VGG-16 (+ optional SRM) used by the user's notebook ----
+class ForensicVGG16(nn.Module):
+    """VGG-16 features backbone + GAP + MLP head yielding a single logit.
+    This mirrors the notebook's structure: backbone (torchvision vgg16.features) and head.
+    SRM (if present in checkpoint) will be ignored safely when loading.
+    """
+    def __init__(self):
+        super().__init__()
+        vgg = tv_models.vgg16(weights=None)
+        self.backbone = vgg.features  # (N,3,H,W) -> (N,512,H/32,W/32)
+        self.gap = nn.AdaptiveAvgPool2d(1)
+        # Notebook head: BN(512) -> Dropout(0.4) -> Linear(512->1)
+        self.head = nn.Sequential(
+            nn.Flatten(),
+            nn.BatchNorm1d(512),
+            nn.Dropout(p=0.4),
+            nn.Linear(512, 1),
+        )
+
+    def forward(self, x):
+        x = self.backbone(x)
+        x = self.gap(x)
+        x = self.head(x)
+        return x  # (N,1)
+
+def _filter_compatible_state(model: nn.Module, state: dict) -> dict:
+    """Keep only keys that exist in the model with matching tensor shapes.
+    This lets us load checkpoints that may include extra keys like 'srm.*'."""
+    model_state = model.state_dict()
+    filtered = {}
+    for k, v in state.items():
+        if k in model_state and isinstance(v, torch.Tensor) and v.shape == model_state[k].shape:
+            filtered[k] = v
+    return filtered
 
 @st.cache_resource(show_spinner=False)
 def load_temperature(calib_path: Path) -> float:
@@ -66,59 +162,101 @@ def load_temperature(calib_path: Path) -> float:
     return 1.0
 
 @st.cache_resource
-def load_model():
-    """Load the trained MViTv2 model."""
+def load_model(model_id: str):
+    """Load the selected model according to MODEL_REGISTRY."""
+    cfg = MODEL_REGISTRY[model_id]
     device = (
         torch.device("mps") if torch.backends.mps.is_available()
         else torch.device("cuda") if torch.cuda.is_available()
         else torch.device("cpu")
     )
-    
-    # Model configuration (same as training)
-    model_config = {
-        "model_name": "mvitv2_tiny",
-        "num_classes": 2,
-        "drop_rate": 0.2
-    }
-    
-    # Create model WITHOUT downloading ImageNet weights (we'll load our checkpoint)
-    model = timm.create_model(
-        model_config["model_name"],
-        pretrained=False,
-        num_classes=model_config["num_classes"],
-        drop_rate=model_config["drop_rate"],
-    )
-    
-    # Load trained weights (handle both dict formats)
-    loaded_msg = ""
-    if CHECKPOINT_PATH.exists():
-        checkpoint = torch.load(CHECKPOINT_PATH, map_location="cpu")
-        state = checkpoint.get("model_state", checkpoint)
-        model.load_state_dict(state, strict=False)
-        loaded_msg = f"Loaded trained model from {CHECKPOINT_PATH.name}"
+
+    if cfg["backend"] == "timm":
+        model = timm.create_model(
+            cfg["model_name"],
+            pretrained=False,
+            num_classes=cfg["num_classes"],
+            drop_rate=cfg.get("drop_rate", 0.0),
+        )
+    elif cfg["backend"] == "torchvision":
+        # base backbone; we'll align the head and then load weights
+        backbone = tv_models.efficientnet_b3(weights=None)
+        # Torchvision EfficientNet-B3 classifier:
+        # Sequential(Dropout(p=0.3), Linear(1536, 1000))
+        in_features = backbone.classifier[1].in_features
+        backbone.classifier = torch.nn.Sequential(
+            torch.nn.Dropout(p=0.3),
+            torch.nn.Linear(in_features, 512),
+            torch.nn.ReLU(inplace=True),
+            torch.nn.BatchNorm1d(512),
+            torch.nn.Dropout(p=0.2),
+            torch.nn.Linear(512, cfg["num_classes"]),
+        )
+        model = backbone
+    elif cfg["backend"] == "custom_vgg16_srm":
+        # Build the notebook-compatible VGG-16 wrapper (single-logit output)
+        model = ForensicVGG16()
     else:
-        st.error(f"❌ Model checkpoint not found at {CHECKPOINT_PATH}")
+        raise ValueError(f"Unknown backend for model_id={model_id}")
+
+    ckpt_path = cfg["checkpoint_path"]
+    if ckpt_path.exists():
+        checkpoint = torch.load(ckpt_path, map_location="cpu")
+        state = (
+            checkpoint.get("model_state_dict")
+            or checkpoint.get("model_state")
+            or checkpoint
+        )
+        # If the checkpoint was saved from a wrapper module (e.g., DeepfakeDetector with self.backbone),
+        # its keys may be prefixed with 'backbone.'. Strip that prefix to match torchvision's module names.
+        if cfg["backend"] == "torchvision" and cfg.get("model_name") == "efficientnet_b3" and isinstance(state, dict):
+            if any(k.startswith("backbone.") for k in state.keys()):
+                from collections import OrderedDict
+                new_state = OrderedDict()
+                for k, v in state.items():
+                    new_key = k[9:] if k.startswith("backbone.") else k  # remove leading 'backbone.'
+                    new_state[new_key] = v
+                state = new_state
+        # Generic prefix cleanup (DDP / wrappers)
+        if isinstance(state, dict) and any(k.startswith(("module.", "model.")) for k in state.keys()):
+            from collections import OrderedDict
+            cleaned = OrderedDict()
+            for k, v in state.items():
+                if k.startswith("module."):
+                    cleaned[k[len("module."):]] = v
+                elif k.startswith("model."):
+                    cleaned[k[len("model."):]] = v
+                else:
+                    cleaned[k] = v
+            state = cleaned
+
+        # For custom VGG-16 wrapper, load only matching keys (ignore SRM or other extras)
+        if cfg["backend"] == "custom_vgg16_srm" and isinstance(state, dict):
+            state = _filter_compatible_state(model, state)
+        missing, unexpected = model.load_state_dict(state, strict=False)
+        loaded_msg = f"Loaded {cfg['display_name']} from {ckpt_path.name}"
+        if missing or unexpected:
+            loaded_msg += f" (missing keys: {len(missing)}, unexpected: {len(unexpected)})"
+    else:
+        st.error(f"❌ Model checkpoint not found at {ckpt_path}")
         st.stop()
 
     model.eval()
     model.to(device)
-    return model, device, loaded_msg
+    return model, device, cfg, loaded_msg
 
 @st.cache_data
-def get_transforms():
-    """Get image preprocessing transforms (same as training)."""
-    # ImageNet normalization (same as training)
+def get_transforms(model_id: str):
+    """Get image preprocessing transforms per selected model."""
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]
-    img_size = 224
-    
+    img_size = int(MODEL_REGISTRY[model_id]["input_size"])
     transforms = A.Compose([
         A.Resize(img_size, img_size),
         A.Normalize(mean=mean, std=std),
         ToTensorV2(),
     ])
-    
-    return transforms
+    return transforms, img_size
 
 def preprocess_image(image, transforms):
     """Preprocess uploaded image for model inference."""
@@ -289,22 +427,41 @@ def _image_to_base64(image_pil):
 
 def main():
     # Title and description
-    st.title("🔍 Deepfake Image Detection with MViTv2")
+    st.title("🔍 Deepfake Image Detection")
     st.markdown("""
-    This application uses a **Multiscale Vision Transformer v2 (MViTv2)** model to detect deepfake images.
-    The model has been trained to classify face images as **Real** or **Fake** with **93.96% accuracy**.
+    Upload one or more images and choose a model to classify them as **Real** or **Fake**.
     """)
     
     # Sidebar
     with st.sidebar:
+        # Model selector
+        model_options = {MODEL_REGISTRY[k]["display_name"]: k for k in MODEL_REGISTRY.keys()}
+        selected_label = st.selectbox("Model", list(model_options.keys()), index=0)
+        model_id = model_options[selected_label]
+
+        # Load model & transforms based on selection
+        model, device, model_cfg, loaded_msg = load_model(model_id)
+        st.session_state["loaded_msg"] = loaded_msg
+        transforms, input_size = get_transforms(model_id)
+
+        # Title and loaded model info
         st.title("Deepfake Detector")
         if st.session_state.get("loaded_msg"):
             st.caption(st.session_state["loaded_msg"])
 
         threshold = st.slider("Decision threshold (fake if ≥ threshold)", min_value=0.30, max_value=0.90, value=0.50, step=0.01)
-        # Calibration controls
-        calib_on = st.toggle("Enable calibration (temperature scaling)", value=False, help="When ON, apply the learned temperature to logits before softmax.")
-        uncert_band = st.slider("Uncertain zone (± around 50%)", min_value=0.01, max_value=0.20, value=0.05, step=0.01, help="Only used when calibration is ON. Samples within [0.5±band] are flagged as 'Uncertain'.")
+        
+        # Calibration controls (only for MViTv2)
+        calib_supported = bool(model_cfg.get("calibration_supported", False))
+        if calib_supported:
+            calib_on = st.toggle("Enable calibration (temperature scaling)", value=False, help="When ON, apply the learned temperature to logits before softmax.")
+            uncert_band = st.slider("Uncertain zone (± around 50%)", min_value=0.01, max_value=0.20, value=0.05, step=0.01, help="Only used when calibration is ON. Samples within [0.5±band] are flagged as 'Uncertain'.")
+            temperature = load_temperature(CALIB_PATH) if calib_on else 1.0
+        else:
+            calib_on = False
+            uncert_band = 0.0
+            temperature = 1.0
+            st.caption("Calibration not available for this model.")
     
     # --- Single-uploader state (we keep files once chosen) ---
     if "uploaded_files" not in st.session_state:
@@ -480,19 +637,15 @@ def main():
                 )
             with col_tech:
                 st.subheader("🔬 Technical Details")
-                calib_state = "ON" if calib_on else "OFF"
-                example_shape = [1, 3, 224, 224]
-                effective_T = float(temperature) if calib_on else 1.0
-                uncert_val = float(uncert_band) if calib_on else 0.0
                 st.markdown(f"""
-                - **Model**: MViTv2-Tiny
+                - **Model**: {model_cfg['display_name']}
                 - **Device**: {device.type.upper()}
-                - **Input Shape**: {example_shape}
-                - **Preprocessing**: Resize to 224×224, ImageNet normalization
+                - **Input Shape**: {[1, 3, input_size, input_size]}
+                - **Preprocessing**: Resize to {input_size}×{input_size}, ImageNet normalization
                 - **Decision Threshold**: {threshold:.2f}
-                - **Calibration**: {calib_state}
-                - **Temperature (T)**: {effective_T:.3f}
-                - **Uncertain Zone**: ±{uncert_val:.2f} (around 50%)
+                - **Calibration**: {"ON" if calib_on else "OFF"}
+                - **Temperature (T)**: {float(temperature):.3f}
+                - **Uncertain Zone**: ±{float(uncert_band):.2f} (around 50% when calibration is ON)
                 """)
 
 
@@ -509,17 +662,28 @@ def main():
     # Additional information
     st.markdown("---")
     st.subheader("📈 Model Performance")
-    
+
     col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Overall Accuracy", "93.96%")
-    with col2:
-        st.metric("Precision (Real)", "98.02%")
-    with col3:
-        st.metric("Recall (Real)", "89.64%")
-    with col4:
-        st.metric("F1-Score", "93.94%")
-    
+    metrics = METRICS_REGISTRY.get(model_id)
+    if metrics is not None:
+        with col1:
+            st.metric("Accuracy", f"{metrics['accuracy']*100:.2f}%")
+        with col2:
+            st.metric("Precision (Macro)", f"{metrics['precision_macro']*100:.2f}%")
+        with col3:
+            st.metric("Recall (Macro)", f"{metrics['recall_macro']*100:.2f}%")
+        with col4:
+            st.metric("F1 (Macro)", f"{metrics['f1_macro']*100:.2f}%")
+    else:
+        with col1:
+            st.metric("Accuracy", "-")
+        with col2:
+            st.metric("Precision (Macro)", "-")
+        with col3:
+            st.metric("Recall (Macro)", "-")
+        with col4:
+            st.metric("F1 (Macro)", "-")
+
     # Disclaimer
     st.markdown("---")
     st.markdown("""
@@ -529,8 +693,4 @@ def main():
     """)
 
 if __name__ == "__main__":
-    model, device, loaded_msg = load_model()
-    transforms = get_transforms()
-    temperature = load_temperature(CALIB_PATH)
-    st.session_state["loaded_msg"] = loaded_msg
     main()

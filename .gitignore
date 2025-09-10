@@ -7,6 +7,8 @@ Dataset/*
 # Ignore model checkpoints
 outputs/checkpoints/
 *.pt
+*.pth
 
 # Ignore macOS system files
 .DS_Store
+
