@@ -10,6 +10,8 @@ from pathlib import Path
 import PIL.Image as Image
 import streamlit.components.v1 as components
 from torchvision import models as tv_models
+from torchvision.models import vgg16, VGG16_Weights
+import cv2
 
 # Configure page
 st.set_page_config(
@@ -85,7 +87,7 @@ MODEL_REGISTRY = {
         "model_name": "vgg16",
         "num_classes": 1,  # single-logit output (sigmoid)
         "drop_rate": 0.0,
-        "checkpoint_path": PROJECT_ROOT / "VGG16-checkpoint" / "vgg16.pt",  # <-- you can change this path
+        "checkpoint_path": PROJECT_ROOT / "VGG16-checkpoint" / "deepfake_cnn.pt",  # <-- you can change this path
         "input_size": 244,
         "calibration_supported": False,
     }
@@ -115,25 +117,55 @@ METRICS_REGISTRY = {
 }
 
 # ---- Custom wrapper for VGG-16 (+ optional SRM) used by the user's notebook ----
-class ForensicVGG16(nn.Module):
-    """VGG-16 features backbone + GAP + MLP head yielding a single logit.
-    This mirrors the notebook's structure: backbone (torchvision vgg16.features) and head.
-    SRM (if present in checkpoint) will be ignored safely when loading.
-    """
+class SRMConv(nn.Module):
+    """Fixed high-pass SRM filters (3 kernels) applied depthwise to RGB -> 9ch -> 1x1 fuse -> 3ch."""
     def __init__(self):
         super().__init__()
-        vgg = tv_models.vgg16(weights=None)
-        self.backbone = vgg.features  # (N,3,H,W) -> (N,512,H/32,W/32)
+        k = torch.tensor(
+            [
+                [[0, -1, 0], [-1, 4, -1], [0, -1, 0]],
+                [[-1, 2, -1], [2, -4, 2], [-1, 2, -1]],
+                [[0, 0, 0], [0, 1, -1], [0, -1, 0]],
+            ],
+            dtype=torch.float32,
+        ).unsqueeze(1)  # (3,1,3,3)
+
+        # Depthwise conv: 3 input chans, 9 output chans, groups=3 -> 3 outputs per input group
+        self.depthwise = nn.Conv2d(
+            in_channels=3, out_channels=9, kernel_size=3, padding=1, bias=False, groups=3
+        )
+        with torch.no_grad():
+            # Repeat the 3 kernels for each of the 3 channel groups -> (9,1,3,3)
+            kernels = k.repeat(3, 1, 1, 1)
+            self.depthwise.weight.copy_(kernels)
+        for p in self.depthwise.parameters():
+            p.requires_grad = False  # fixed SRM filters
+
+        self.fuse = nn.Conv2d(9, 3, kernel_size=1, bias=False)  # learnable 1x1 to adapt SRM outputs
+
+    def forward(self, x):
+        x = self.depthwise(x)
+        x = self.fuse(x)
+        return x
+
+class ForensicVGG16(nn.Module):
+    """
+    Matches the notebook: SRM -> VGG16 conv features (ImageNet features) -> GAP head (BN+Dropout+Linear) -> 1 logit.
+    """
+    def __init__(self, pretrained=True, dropout=0.4):
+        super().__init__()
+        self.srm = SRMConv()
+        self.backbone = vgg16(weights=VGG16_Weights.IMAGENET1K_FEATURES if pretrained else None).features
         self.gap = nn.AdaptiveAvgPool2d(1)
-        # Notebook head: BN(512) -> Dropout(0.4) -> Linear(512->1)
         self.head = nn.Sequential(
             nn.Flatten(),
             nn.BatchNorm1d(512),
-            nn.Dropout(p=0.4),
+            nn.Dropout(p=dropout),
             nn.Linear(512, 1),
         )
 
     def forward(self, x):
+        x = self.srm(x)
         x = self.backbone(x)
         x = self.gap(x)
         x = self.head(x)
@@ -252,8 +284,10 @@ def get_transforms(model_id: str):
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]
     img_size = int(MODEL_REGISTRY[model_id]["input_size"])
+    resize_to = int(round(1.10 * img_size))
     transforms = A.Compose([
-        A.Resize(img_size, img_size),
+        A.Resize(resize_to, resize_to, interpolation=cv2.INTER_AREA),
+        A.CenterCrop(img_size, img_size),
         A.Normalize(mean=mean, std=std),
         ToTensorV2(),
     ])
