@@ -93,7 +93,7 @@ deepfakeDetection-mvitv2/
 │   ├── checkpoints/       # Trained model checkpoints
 │   │   ├── mvitv2_phase2_best.pt    # MViTv2 model (default)
 │   │   ├── best_efficientnet_b3.pth # EfficientNet-B3 model
-│   │   └── vgg16.pt                 # VGG-16+SRM model
+│   │   └── deepfake_cnn.pt          # VGG-16+SRM model
 │   ├── calibration/       # Temperature calibration files
 │   ├── figures/           # ROC curves, confusion matrices
 │   ├── metrics/           # Training history and metrics
@@ -334,7 +334,7 @@ The project generates comprehensive outputs and provides multiple ways to access
   ├── best_efficientnet_b3.pth   # EfficientNet-B3 model (91.30% accuracy)
   
   VGG16-checkpoint/
-  ├── vgg16.pt                   # VGG-16+SRM model (96.98% accuracy)
+  ├── deepfake_cnn.pt            # VGG-16+SRM model (96.98% accuracy)
   ```
 
 - **App behavior**: The application will automatically detect available models and show them in the model selector. If a checkpoint is missing, that model will be unavailable until the checkpoint is added.
@@ -468,7 +468,7 @@ device = (
    - Ensure the required checkpoint files exist:
      - `outputs/checkpoints/mvitv2_phase2_best.pt` (MViTv2)
      - `B3-checkpoint/best_efficientnet_b3.pth` (EfficientNet-B3)
-     - `VGG16-checkpoint/vgg16.pt` (VGG-16+SRM)
+     - `VGG16-checkpoint/deepfake_cnn.pt` (VGG-16+SRM)
    - Download missing checkpoints from OneDrive link above
    - Check if the model architecture matches the checkpoint
    - Verify sufficient disk space and memory
