@@ -1,0 +1,15 @@
+Unseen Data Evaluation
+Accuracy : 0.0000
+Precision: 0.0000
+Recall   : 0.0000
+F1-score : 0.0000
+AUC      : nan
+
+              precision    recall  f1-score   support
+
+        real       0.00      0.00      0.00       0.0
+        fake       0.00      0.00      0.00    2997.0
+
+    accuracy                           0.00    2997.0
+   macro avg       0.00      0.00      0.00    2997.0
+weighted avg       0.00      0.00      0.00    2997.0

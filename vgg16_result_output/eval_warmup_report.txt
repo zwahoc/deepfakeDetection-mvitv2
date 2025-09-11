@@ -1,0 +1,15 @@
+Evaluation
+Accuracy : 0.6870
+Precision: 0.6191
+Recall   : 0.9663
+F1-score : 0.7547
+AUC      : 0.8813
+
+              precision    recall  f1-score   support
+
+        real       0.92      0.41      0.57     19787
+        fake       0.62      0.97      0.75     19641
+
+    accuracy                           0.69     39428
+   macro avg       0.77      0.69      0.66     39428
+weighted avg       0.77      0.69      0.66     39428

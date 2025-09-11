@@ -195,7 +195,8 @@ def load_model(model_id: str):
         model = backbone
     elif cfg["backend"] == "custom_vgg16_srm":
         # Build the notebook-compatible VGG-16 wrapper (single-logit output)
-        model = ForensicVGG16()
+        model = ForensicVGG16(pretrained=True, dropout=0.4)
+
     else:
         raise ValueError(f"Unknown backend for model_id={model_id}")
 
