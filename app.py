@@ -8,6 +8,12 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from pathlib import Path
 import PIL.Image as Image
+# Optional: enable HEIC/HEIF support if pillow-heif is installed
+try:
+    import pillow_heif  # pip install pillow-heif
+    pillow_heif.register_heif_opener()
+except Exception:
+    pass
 import streamlit.components.v1 as components
 from torchvision import models as tv_models
 from torchvision.models import vgg16, VGG16_Weights
@@ -529,7 +535,7 @@ def main():
     st.header("📤 Upload Image(s)")
     files = st.file_uploader(
         "Choose image file(s)",
-        type=["png", "jpg", "jpeg", "webp", "bmp"],
+        type=["png", "jpg", "jpeg", "webp", "bmp", "heic", "heif"],
         accept_multiple_files=True,
         help="Upload one or more face images to analyze",
         label_visibility="collapsed",
@@ -607,7 +613,12 @@ def main():
             try:
                 img_pil = Image.open(f).convert("RGB")
             except Exception as e:
-                st.error(f"Could not open {getattr(f, 'name', 'image')}: {e}")
+                name = getattr(f, "name", "image")
+                # Common case: HEIC/HEIF uploaded but pillow-heif not installed
+                if str(name).lower().endswith((".heic", ".heif")):
+                    st.error("Could not open HEIC/HEIF file. Please install the optional dependency: `pip install pillow-heif` and restart the app.")
+                else:
+                    st.error(f"Could not open {name}: {e}")
                 continue
 
             tensor = preprocess_image(img_pil, transforms)
