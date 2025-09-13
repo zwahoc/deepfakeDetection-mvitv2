@@ -5,7 +5,7 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.0+-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-A comprehensive deep learning platform for detecting deepfake images featuring **multiple state-of-the-art models** including **MViTv2**, **EfficientNet-B3**, and **VGG-16+SRM**. This system includes both a complete training pipeline and an **interactive web application** for real-time deepfake detection with **up to 96.98% accuracy**.
+A comprehensive deep learning platform for detecting deepfake images featuring **multiple state-of-the-art models** including **MViTv2**, **EfficientNet-B3**, and **VGG-16**. This system includes both a complete training pipeline and an **interactive web application** for real-time deepfake detection with **up to 96.98% accuracy**.
 
 ## 📦 Dataset
 
@@ -19,7 +19,7 @@ Deepfakes pose serious risks in misinformation, fraud, privacy invasion, and tru
 
 | Model | Architecture | Accuracy | Best For |
 |-------|-------------|----------|----------|
-| **VGG-16 + SRM** | CNN + Spatial Rich Model | **96.98%** | High accuracy, forensic analysis |
+| **VGG-16** | CNN | **96.98%** | High accuracy, forensic analysis |
 | **MViTv2-Tiny** | Vision Transformer | **93.96%** | Balanced performance, modern architecture |
 | **EfficientNet-B3** | Efficient CNN | **91.30%** | Fast inference, resource efficiency |
 
@@ -27,7 +27,7 @@ Deepfakes pose serious risks in misinformation, fraud, privacy invasion, and tru
 
 The platform features a **sophisticated Streamlit web application** (`app.py`) that provides:
 
-- **🔄 Multi-model selection**: Choose between VGG-16+SRM, MViTv2, or EfficientNet-B3
+- **🔄 Multi-model selection**: Choose between VGG-16, MViTv2, or EfficientNet-B3
 - **📤 Multi-image upload**: Upload and analyze multiple images simultaneously
 - **🎛️ Advanced controls**: Configurable decision threshold and uncertainty detection
 - **🌡️ Temperature calibration**: Advanced probability calibration for MViTv2 (better confidence estimates)
@@ -47,7 +47,7 @@ Visit `http://localhost:8501` to access the interactive interface!
 
 ### 📊 Model Performance
 
-#### **VGG-16 + SRM (Best Overall)**
+#### **VGG-16 (Best Overall)**
 | Metric | Real Images | Fake Images | Overall |
 |--------|-------------|-------------|---------|
 | Precision | 96.44% | 96.44% | **96.44%** |
@@ -93,13 +93,13 @@ deepfakeDetection-mvitv2/
 │   ├── checkpoints/       # Trained model checkpoints
 │   │   ├── mvitv2_phase2_best.pt    # MViTv2 model (default)
 │   │   ├── best_efficientnet_b3.pth # EfficientNet-B3 model
-│   │   └── deepfake_cnn.pt          # VGG-16+SRM model
+│   │   └── deepfake_cnn.pt          # VGG-16 model
 │   ├── calibration/       # Temperature calibration files
 │   ├── figures/           # ROC curves, confusion matrices
 │   ├── metrics/           # Training history and metrics
 │   └── predictions/       # Model predictions and reports
 ├── 📁 B3-checkpoint/      # EfficientNet-B3 model checkpoints
-├── 📁 VGG16-checkpoint/   # VGG-16+SRM model checkpoints
+├── 📁 VGG16-checkpoint/   # VGG-16 model checkpoints
 ├── 📱 app.py              # Advanced multi-model Streamlit application
 ├── 📋 requirements.txt    # Python dependencies
 ├── 🐍 environment.yml     # Conda environment configuration
@@ -154,7 +154,7 @@ streamlit run app.py
 
 1. **Launch the app**: `streamlit run app.py`
 2. **Open browser**: Navigate to `http://localhost:8501`
-3. **Select model**: Choose from VGG-16+SRM, MViTv2, or EfficientNet-B3 in the sidebar
+3. **Select model**: Choose from VGG-16, MViTv2, or EfficientNet-B3 in the sidebar
 4. **Upload images**: Use the file uploader to select face images (supports JPG, PNG, JPEG, WebP, BMP)
 5. **Adjust settings**: Configure threshold and calibration options
 6. **View results**: See predictions, confidence scores, and technical details
@@ -164,7 +164,7 @@ streamlit run app.py
 ### 🎛️ **Application Features Breakdown**
 
 #### **Model Selection**
-- **VGG-16 + SRM**: Best for forensic-level analysis with 96.98% accuracy
+- **VGG-16**: Best for forensic-level analysis with 96.98% accuracy
 - **MViTv2-Tiny**: Modern transformer with temperature calibration support
 - **EfficientNet-B3**: Fast and efficient for real-time applications
 
@@ -209,7 +209,7 @@ streamlit run app.py
 ```
 
 **Key Features:**
-- **Multi-model support**: Switch between VGG-16+SRM, MViTv2, and EfficientNet-B3
+- **Multi-model support**: Switch between VGG-16, MViTv2, and EfficientNet-B3
 - **Interactive interface**: Upload and analyze images through a web browser
 - **Batch processing**: Handle multiple images simultaneously with carousel navigation
 - **Real-time results**: See predictions and confidence scores instantly
@@ -243,7 +243,7 @@ For training your own models or exploring the complete pipeline:
 The web application supports extensive configuration options:
 
 #### **Model Selection**
-- **VGG-16 + SRM**: Custom forensic architecture with Spatial Rich Model preprocessing
+- **VGG-16**: Custom forensic architecture with Spatial Rich Model preprocessing
 - **MViTv2-Tiny**: Vision Transformer with hierarchical attention mechanisms  
 - **EfficientNet-B3**: Compound scaling CNN optimized for efficiency
 
@@ -278,7 +278,7 @@ The project uses a two-phase training approach, fully implemented in the noteboo
 
 ## 📈 Model Architectures
 
-### **1. VGG-16 + SRM (Forensic Model)**
+### **1. VGG-16 (Forensic Model)**
 - **Backbone**: VGG-16 feature extractor + custom head
 - **Special Feature**: Spatial Rich Model (SRM) preprocessing for forensic analysis
 - **Input size**: 244×244 RGB images
@@ -334,7 +334,7 @@ The project generates comprehensive outputs and provides multiple ways to access
   ├── best_efficientnet_b3.pth   # EfficientNet-B3 model (91.30% accuracy)
   
   VGG16-checkpoint/
-  ├── deepfake_cnn.pt            # VGG-16+SRM model (96.98% accuracy)
+  ├── deepfake_cnn.pt            # VGG-16 model (96.98% accuracy)
   ```
 
 - **App behavior**: The application will automatically detect available models and show them in the model selector. If a checkpoint is missing, that model will be unavailable until the checkpoint is added.
@@ -378,7 +378,7 @@ MODEL_REGISTRY = {
         "calibration_supported": False,  # No temperature scaling
     },
     "vgg16_srm": {
-        "display_name": "VGG-16 + SRM",
+        "display_name": "VGG-16",
         "backend": "custom_vgg16_srm",
         "input_size": 244,
         "calibration_supported": False,  # No temperature scaling
@@ -468,7 +468,7 @@ device = (
    - Ensure the required checkpoint files exist:
      - `outputs/checkpoints/mvitv2_phase2_best.pt` (MViTv2)
      - `B3-checkpoint/best_efficientnet_b3.pth` (EfficientNet-B3)
-     - `VGG16-checkpoint/deepfake_cnn.pt` (VGG-16+SRM)
+     - `VGG16-checkpoint/deepfake_cnn.pt` (VGG-16)
    - Download missing checkpoints from OneDrive link above
    - Check if the model architecture matches the checkpoint
    - Verify sufficient disk space and memory
@@ -516,7 +516,7 @@ device = (
 #### For Web Application:
 - **Browser**: Use Chrome or Firefox for best compatibility
 - **Upload**: Resize large images before upload for faster processing
-- **Model selection**: Use VGG-16+SRM for highest accuracy, EfficientNet-B3 for speed
+- **Model selection**: Use VGG-16 for highest accuracy, EfficientNet-B3 for speed
 - **Batch size**: Upload 5-10 images at a time for optimal performance
 - **Memory**: Restart app periodically for long sessions to clear memory
 
@@ -556,7 +556,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### ✅ **What's Included**
 - � **Three state-of-the-art models** with up to 96.98% accuracy
-- 🧠 **Multi-model platform** supporting VGG-16+SRM, MViTv2, and EfficientNet-B3
+- 🧠 **Multi-model platform** supporting VGG-16, MViTv2, and EfficientNet-B3
 - 🌐 **Advanced web application** with model selection and carousel UI
 - 📚 **Complete training pipeline** in Jupyter notebook  
 - 🔧 **Cross-platform support** (Windows, macOS, Linux)
