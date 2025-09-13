@@ -88,7 +88,7 @@ MODEL_REGISTRY = {
         "calibration_supported": False,  # calibration only for MViTv2
     },
     "vgg16_srm": {
-        "display_name": "VGG-16 + SRM",
+        "display_name": "VGG-16",
         "backend": "custom_vgg16_srm",
         "model_name": "vgg16",
         "num_classes": 1,  # single-logit output (sigmoid)
